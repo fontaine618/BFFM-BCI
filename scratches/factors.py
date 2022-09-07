@@ -1,8 +1,8 @@
 import torch
-from models.dwps.variables import ObservedVariable
-from models.dwps.variables import GaussianObservations
-from models.dwps.variables import ObservationVariance
-from models.dwps.variables import Loadings, Heterogeneities, ShrinkageFactor
+from models.bffmbci.variables import ObservedVariable
+from models.bffmbci.variables import GaussianObservations
+from models.bffmbci.variables import ObservationVariance
+from models.bffmbci.variables import Loadings, Heterogeneities, ShrinkageFactor
 
 # GaussianObservations
 
@@ -89,13 +89,13 @@ import torch
 import torch.linalg
 import scipy.linalg
 import matplotlib.pyplot as plt
-from models.dwps.variables import GaussianProcess, TruncatedGaussianProcess01
-from models.dwps.utils import Kernel
-from models.dwps.variables import SequenceData, SMGP, Superposition
-from models.dwps.variables import ObservedVariable
-from models.dwps.variables import GaussianObservations
-from models.dwps.variables import ObservationVariance
-from models.dwps.variables import Loadings, Heterogeneities, ShrinkageFactor
+from models.bffmbci.variables import GaussianProcess, TruncatedGaussianProcess01
+from models.bffmbci.utils import Kernel
+from models.bffmbci.variables import SequenceData, SMGP, Superposition
+from models.bffmbci.variables import ObservedVariable
+from models.bffmbci.variables import GaussianObservations
+from models.bffmbci.variables import ObservationVariance
+from models.bffmbci.variables import Loadings, Heterogeneities, ShrinkageFactor
 import torch.nn.functional as F
 
 E = 15
@@ -175,18 +175,20 @@ import numpy as np
 import torch.linalg
 import scipy.linalg
 import matplotlib.pyplot as plt
-from models.dwps.variables import GaussianProcess, TruncatedGaussianProcess01
-from models.dwps.utils import Kernel
-from models.dwps.variables import SequenceData, SMGP, Superposition
-from models.dwps.variables import ObservedVariable
-from models.dwps.variables import GaussianObservations
-from models.dwps.variables import ObservationVariance
-from models.dwps.variables import Loadings, Heterogeneities, ShrinkageFactor
-from models.dwps.variables import NoisyProcesses
+from models.bffmbci.variables import GaussianProcess, TruncatedGaussianProcess01
+from models.bffmbci.utils import Kernel
+from models.bffmbci.variables import SequenceData, SMGP, Superposition
+from models.bffmbci.variables import ObservedVariable
+from models.bffmbci.variables import GaussianObservations
+from models.bffmbci.variables import ObservationVariance
+from models.bffmbci.variables import Loadings, Heterogeneities, ShrinkageFactor
+from models.bffmbci.variables import NoisyProcesses
 import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-white")
+
+
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -195,7 +197,7 @@ E = 15
 J = 12
 K, W, d = 3, 55, 10
 T = (J-1) * d + W
-N = 25
+N = 19*15
 
 # Generative model
 observation_variance = ObservationVariance(n_channels=E, prior_parameters=(1., 10.))
@@ -207,7 +209,7 @@ target = torch.hstack([
 	torch.randint(0, 6, (N, 1)),
 	torch.randint(6, 12, (N, 1))
 ])
-target = F.one_hot(target, num_classes=J).max(1).values
+
 sequence_data = SequenceData(order, target)
 cov = torch.Tensor(scipy.linalg.toeplitz(0.99**np.arange(W)))
 kernel_gp = Kernel.from_covariance_matrix(cov)
@@ -259,7 +261,8 @@ loading_processes.add_children(observations=observations)
 mean_factor_processes.add_children(child=factor_processes, observations=observations)
 factor_processes.add_children(observations=observations)
 
-
+print(smgp_factors)
+print(observations)
 
 
 
@@ -279,6 +282,97 @@ print("sampling loadings processes")
 loading_processes.sample()
 smgp_loadings.sample()
 sequence_data.sample()
+
+
+cProfile.run("smgp_loadings.sample()")
+
+
+from torch.autograd.functional import jacobian
+self = smgp_loadings.nontarget_process
+value = self.data
+k = 0
+
+
+self = loading_processes
+n = 0
+j = 3
+
+ynj = yn[j]
+
+
+p_inj = (1 - ynj * mixing_process) * nontarget_process + \
+        ynj * mixing_process * target_process
+
+ynn = yn.unsqueeze(0).unsqueeze(0)
+p_in = (1 - ynn * mixing_process.unsqueeze(-1)) * nontarget_process.unsqueeze(-1) + \
+        ynn * mixing_process.unsqueeze(-1) * target_process.unsqueeze(-1)
+
+
+
+# noisy process
+from torch.autograd.functional import jacobian
+from functorch import vmap, vjp, jacfwd, jacrev, make_fx
+from functorch.experimental import functionalize
+from functorch import make_functional_with_buffers
+from functools import partial
+import torch.nn
+self = factor_processes
+value = self.data
+k = 0
+
+
+zk = self.observations.factor_processes.data[:, k, :]
+
+def f(l, lp, fp, zk):
+	fp[:, k, :] = zk
+	return torch.einsum(
+		"ek, nkt, nkt -> net",
+		l, lp, fp
+	)
+
+compute_batch_jacobian = vmap(
+	jacrev(f, argnums=3), (None, 0, 0, 0), 0
+)
+L = compute_batch_jacobian(
+	self.observations.loadings.data,
+	self.observations.loading_processes.data,
+	self.observations.factor_processes.data,
+	zk
+)
+
+compute_batch_jacobian = vmap(jacfwd(fk))
+
+
+class TmpModel(torch.nn.Module):
+
+	def __init__(self, loadings, loading_processes, factor_processes, k):
+		super().__init__()
+		self.loadings = torch.nn.Parameter(loadings.data, requires_grad=False)
+		self.loading_processes = torch.nn.Parameter(loading_processes.data, requires_grad=False)
+		self.factor_processes = torch.nn.Parameter(factor_processes.data, requires_grad=False)
+		self.k = k
+
+	def forward(self, zk):
+		factor_processes = self.factor_processes
+		factor_processes[:, self.k, :] = zk
+		return torch.einsum(
+			"ek, nkt, nkt -> net",
+			self.loadings, self.loading_processes, factor_processes
+		)
+
+model = TmpModel(loadings, loading_processes, factor_processes, k)
+model.forward(zk)
+fmodel, params, buffers = make_functional_with_buffers(model)
+
+f = functionalize(model.forward)
+compute_batch_jacobian = vmap(jacrev(f))
+compute_batch_jacobian = vmap(jacrev(model.forward))
+compute_batch_jacobian = vmap(jacfwd(model.forward))
+L = compute_batch_jacobian(zk)
+
+print(make_fx(f)(zk).code)
+
+
 
 
 for i in range(100):
@@ -358,10 +452,3 @@ observation_variance.chain.mean(0)
 observation_variance.chain[0, :]
 
 
-
-# noisy process
-from torch.autograd.functional import jacobian
-from functorch import vmap, vjp, jacfwd, jacrev
-self = factor_processes
-value = self.data
-k = 0

@@ -14,6 +14,8 @@ class GaussianProcess(Variable):
 	We allow mean to be either a fixed integer or a Variable.
 	"""
 
+	_dim_names = ["n_processes", "n_timepoints"]
+
 	def __init__(self, n_copies, kernel: Kernel, mean=0.):
 		dim = n_copies, kernel.shape[0]
 		self.kernel = kernel
@@ -23,7 +25,7 @@ class GaussianProcess(Variable):
 		elif isinstance(mean, Variable):
 			self.mean = mean
 		super().__init__(dim=dim, store=True, init=None)
-		self.parents = {"mean": mean}
+		self.parents = {"mean": self.mean}
 		self.name = None
 		self.superposition = None
 

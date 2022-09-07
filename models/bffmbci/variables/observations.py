@@ -19,6 +19,8 @@ class GaussianObservations(ObservedVariable):
 	- factor_processes: process creating the mean, of dimension [n_sequences, n_latent, n_timepoints]
 	"""
 
+	_dim_names = ["n_sequences", "n_channels", "n_timepoints"]
+
 	def __init__(self, observation_variance, loadings, loading_processes, factor_processes, value=None):
 		self.observation_variance = observation_variance
 		self.loadings = loadings
@@ -79,9 +81,9 @@ class GaussianObservations(ObservedVariable):
 	def log_density(self):
 		var = self.observation_variance.data.unsqueeze(0).unsqueeze(2)
 		N, _, T = self.shape
-		llk = -(self.data - self.mean).pow(2.) / (2. * var)
+		llk = -(self.data - self.mean()).pow(2.) / (2. * var)
 		llk = llk.sum()
-		llk -= N * T * torch.log(var * 2. * math.pi).sum()
+		llk -= 0.5 * N * T * torch.log(var * 2. * math.pi).sum()
 		return llk.item()
 
 	def generate(self):

@@ -37,28 +37,31 @@ class Plate:
 	def values(self):
 		return self.__dict__.values()
 
+	def items(self):
+		return self.__dict__.items()
+
 	@property
 	def parents(self):
 		ids_seen = []
 		parents = dict()
-		for variable in self.values():
+		for n, variable in self.items():
 			for k, v in variable.parents.items():
 				if v.id in ids_seen:
 					continue
-				ids_seen += v.id
-				parents[k] = v
+				ids_seen += [v.id]
+				parents[n + "." + k] = v
 		return parents
 
 	@property
 	def children(self):
 		ids_seen = []
 		parents = dict()
-		for variable in self.values():
+		for n, variable in self.items():
 			for k, v in variable.children.items():
 				if v.id in ids_seen:
 					continue
-				ids_seen += v.id
-				parents[k] = v
+				ids_seen += [v.id]
+				parents[n + "." + k] = v
 		return parents
 
 	def add_children(self, **kwargs):
@@ -75,3 +78,19 @@ class Plate:
 	def sample(self, store=True):
 		for v in list(self.values())[::-1]:
 			v.sample(store=store)
+
+	def __repr__(self):
+		return f"{self.__class__.__name__}()"
+
+	def __str__(self):
+		out = repr(self) + "\n"
+		out += "- Parents:\n"
+		for n, c in self.parents.items():
+			out += f"    {n}: {repr(c)}\n"
+		out += "- Variables:\n"
+		for n, c in self.items():
+			out += f"    {n}: {repr(c)}\n"
+		out += "- Children:\n"
+		for n, c in self.children.items():
+			out += f"    {n}: {repr(c)}\n"
+		return out[:-2]

@@ -1,6 +1,6 @@
 import torch
 from .variable import Variable
-from models.dwps.utils.inverse_gamma import InverseGamma
+from models.bffmbci.utils.inverse_gamma import InverseGamma
 from torch.distributions.normal import Normal
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.gamma import Gamma
@@ -21,6 +21,8 @@ class Loadings(Variable):
 	- shrinkage_factor: of dimension [n_latent, ], tau
 	- observation_variance: of dimension [n_channels, ], sigma
 	"""
+
+	_dim_names = ["n_channels", "latent_dim"]
 
 	def __init__(self, heterogeneities, shrinkage_factor):
 		self.heterogeneities = heterogeneities
@@ -75,6 +77,8 @@ class Heterogeneities(Variable):
 	the only children in loadings, of dimension [n_channels, n_latent]
 	"""
 
+	_dim_names = ["n_channels", "latent_dim"]
+
 	def __init__(self, dim, gamma=3.):
 		self._gamma = gamma
 		self.loadings: Loadings = None
@@ -103,6 +107,8 @@ class ShrinkageFactor(Variable):
 	delta_1 ~ Gamma(a1, 1)
 	delta_j ~ Gamma(a2, 1)
 	"""
+
+	_dim_names = ["latent_dim"]
 
 	def __init__(self, n_latent, prior_parameters=(10., 10.)):
 		self._a1 = prior_parameters[0]

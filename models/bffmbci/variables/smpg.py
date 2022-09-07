@@ -13,6 +13,8 @@ class SMGP(Plate):
 	Split-merge Gaussian Process.
 
 	We only store a0, a1 and zeta, not beta.
+	Note that when zeta (mixing_process) is zero we get nontarget_process,
+	and target_process when equal to 1.
 
 	Children must be a Superposition so we can access its children to get values.
 	"""

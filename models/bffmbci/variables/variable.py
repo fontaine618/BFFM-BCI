@@ -17,6 +17,7 @@ class Variable:
 
 	_observed = False
 	_stochastic = True
+	_dim_names = []
 	new_id = itertools.count()
 
 	def __init__(self, dim=None, store=True, init=None, **kwargs):
@@ -94,13 +95,29 @@ class Variable:
 		for parent in self.parents.values():
 			parent.sample_recursively()
 
+	def __repr__(self):
+		if len(self._dim_names) > 0:
+			dim_str = ', '.join([f"{n}={x}" for n, x in zip(self._dim_names, self.shape)])
+		else:
+			dim_str = ', '.join([f"{x}" for x in self.shape])
+		return f"[{self.id}] {self.__class__.__name__}({dim_str})"
+
+	def __str__(self):
+		out = repr(self) + "\n"
+		out += "- Parents:\n"
+		for n, c in self.parents.items():
+			out += f"    {n}: {repr(c)}\n"
+		out += "- Children:\n"
+		for n, c in self.children.items():
+			out += f"    {n}: {repr(c)}\n"
+		return out[:-2]
+
 
 class ObservedVariable(Variable):
 	r"""
 	Some notes:
 	- generate and sample should have no effects for these variables so keep default
 	- we might want to define generate if we want to sample from the model, though
-		not really, since we really just need to access .data
 	"""
 
 	_observed = True

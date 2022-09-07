@@ -1,5 +1,5 @@
 import torch
-from models.dwps.utils import TruncatedMultivariateGaussian
+from models.bffmbci.utils import TruncatedMultivariateGaussian
 
 torch.manual_seed(0)
 

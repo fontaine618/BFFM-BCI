@@ -1,6 +1,6 @@
 from .variable import Variable
 from .observations import GaussianObservations
-from models.dwps.utils.inverse_gamma import InverseGamma
+from models.bffmbci.utils.inverse_gamma import InverseGamma
 
 
 class ObservationVariance(Variable):
@@ -19,6 +19,8 @@ class ObservationVariance(Variable):
 
 	Initialization is sampling from prior.
 	"""
+
+	_dim_names = ["n_channels"]
 
 	def __init__(self, n_channels=15, prior_parameters=(1, 0.1)):
 		self._a = prior_parameters[0]

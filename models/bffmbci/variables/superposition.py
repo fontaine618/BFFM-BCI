@@ -16,6 +16,7 @@ class Superposition(Variable):
 	"""
 
 	_stochastic = False
+	_dim_names = ["n_sequences", "n_processes", "n_timepoints"]
 
 	def __init__(
 			self,
@@ -41,11 +42,10 @@ class Superposition(Variable):
 		self.name = None
 
 	def superposition(self, nontarget_process=None, target_process=None, mixing_process=None):
-		# TODO: make this more vectorized to improve it
 		N, J = self.sequence_data.order.shape
-		K, w = self.smgp.nontarget_process.shape
+		K, W = self.smgp.nontarget_process.shape
 		d = self._stimulus_to_stimulus_interval
-		T = (J - 1) * d + w
+		T = (J - 1) * d + W
 		value = torch.zeros((N, K, T))
 		if nontarget_process is None:
 			nontarget_process = self.smgp.nontarget_process.data
@@ -54,17 +54,32 @@ class Superposition(Variable):
 		if mixing_process is None:
 			mixing_process = self.smgp.mixing_process.data
 		time = torch.arange(0, T)
-		for n in range(N):
-			wn = self.sequence_data.order.data[n, :]
-			yn = self.sequence_data.target.data[n, :]
-			for j in range(J):
-				ynj = yn[j]
-				p_inj = (1 - ynj * mixing_process) * nontarget_process + \
-				        ynj * mixing_process * target_process
-				wnj = wn[j]
-				shift = (time - wnj * d).long()
-				which = (shift >= 0) * (shift < w)
-				value[n, :, time[which]] += p_inj[:, shift[which]]
+		# for n in range(N):
+		# 	wn = self.sequence_data.order.data[n, :]
+		# 	yn = self.sequence_data.target.data[n, :]
+		# 	for j in range(J):
+		# 		ynj = yn[j]
+		# 		p_inj = (1 - ynj * mixing_process) * nontarget_process + \
+		# 		        ynj * mixing_process * target_process
+		# 		wnj = wn[j]
+		# 		shift = (time - wnj * d).long()
+		# 		which = (shift >= 0) * (shift < W)
+		# 		value[n, :, time[which]] += p_inj[:, shift[which]]
+
+		w = self.sequence_data.order.data
+		y = self.sequence_data.target.data
+		nontarget_process = nontarget_process.unsqueeze(-1).unsqueeze(0)
+		target_process = target_process.unsqueeze(-1).unsqueeze(0)
+		mixing_process = mixing_process.unsqueeze(-1).unsqueeze(0)
+		yy = y.unsqueeze(1).unsqueeze(1)
+		p_in = ((1 - yy * mixing_process) * nontarget_process + \
+		        yy * mixing_process * target_process).movedim(3, 2)
+		shift_n = (time - w.unsqueeze(-1) * d).long() \
+			.unsqueeze(1).expand(p_in.shape[0], p_in.shape[1], -1, -1)
+		which_n = (shift_n >= 0) * (shift_n < W)
+		shift_n = torch.where(which_n, shift_n, W)
+		p_in = torch.cat([p_in, torch.zeros(N, K, J, 1)], 3)
+		value = torch.gather(p_in, 3, shift_n).sum(2)
 		return value
 
 	def generate(self):
