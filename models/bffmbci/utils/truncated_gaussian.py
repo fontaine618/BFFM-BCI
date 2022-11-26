@@ -42,8 +42,12 @@ class TruncatedStandardMultivariateGaussian:
 		if l > u:
 			print(f"{i}: No valid solution (l > u)")
 			return
-		# TODO: find a way to do this on the gpu
-		value[i] = scipy.stats.truncnorm(l.cpu(), u.cpu(), loc=0, scale=1).rvs()
+		elif l > u - 1e-10:
+			value[i] = l
+			return
+		# TODO: find a way to do this on the gpu (CuPy?)
+		# print(l.item(), u.item())
+		value[i] = scipy.stats.truncnorm(l.item(), u.item(), loc=0, scale=1).rvs()
 
 
 class TruncatedMultivariateGaussian(TruncatedStandardMultivariateGaussian):

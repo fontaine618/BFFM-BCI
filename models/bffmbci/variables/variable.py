@@ -24,28 +24,35 @@ class Variable:
 		self.id = next(Variable.new_id)
 		self._dim = torch.Size(dim)
 		self._store = store
-		if store:
-			self._history = torch.zeros((0, *dim))
+		self.clear_history()
 		self._value = None
 		self._init(dim, init)
 		self.parents = dict()
 		self.children = dict()
+		self.true_value = None
 
 	@property
 	def data(self):
 		return self._value
 
+	@data.setter
+	def data(self, value):
+		self._set_value(value, store=False)
+
 	@property
 	def shape(self):
 		return self._dim
 
-	@property
-	def chain(self):
-		return self._history
+	def chain(self, start=0, end=None, thin=1):
+		if not self._store:
+			return None
+		if end is None:
+			end = self._history.shape[0]
+		which = torch.arange(start, end, thin)
+		return self._history.index_select(0, which)
 
 	def _set_value(self, value, store=True):
 		if value.shape != self._dim:
-
 			raise ValueError(f"Trying to set a Variable value to an incorrect size:\n"
 			                 f"got {tuple(value.shape)}, expected: {tuple(self._dim)}")
 		self._value = value
@@ -112,6 +119,14 @@ class Variable:
 			out += f"    {n}: {repr(c)}\n"
 		return out[:-2]
 
+	def jitter(self, sd: float = 0.01):
+		noise = torch.randn(self.shape) * sd
+		self._set_value(self._value * (1 + noise))
+
+	def clear_history(self):
+		if self._store:
+			self._history = torch.zeros((0, *self._dim))
+
 
 class ObservedVariable(Variable):
 	r"""
@@ -134,3 +149,6 @@ class ObservedVariable(Variable):
 		if self._value is not None:
 			raise RuntimeError("Trying to set the value of an observed variable.")
 		super()._set_value(value, store)
+
+	def jitter(self, sd: float = 0.1):
+		pass

@@ -53,7 +53,7 @@ class GaussianProcess(Variable):
 
 		def f(zk):
 			z[k, :] = zk
-			s = self.superposition.superposition(**{self.name: z})
+			s = self.superposition.compute_superposition(**{self.name: z})
 			sname = self.superposition.name
 			out = self.superposition.observations.mean(**{sname: s})
 			return out
@@ -63,7 +63,8 @@ class GaussianProcess(Variable):
 		return L.detach(), fmk.detach()
 
 	def sample(self, store=True):
-		value = self.mean.data.clone().detach()
+		# value = self.mean.data.clone().detach()
+		value = self._value.clone().detach()
 		for k in range(self._dim[0]):
 			p0 = self.kernel.inv
 			mtp0 = p0 @ self.mean.data[k, :]
@@ -102,3 +103,31 @@ class TruncatedGaussianProcess01(GaussianProcess):
 
 	def _sample_k(self, dist, value):
 		return dist.sample(value)
+
+	def jitter(self, sd: float = 0.01):
+		noise = torch.randn(self.shape) * sd
+		self._set_value((self._value * (1 + noise)).clamp(min=0., max=1.))
+
+
+class NonnegativeGaussianProcess(GaussianProcess):
+
+	def __init__(self, n_copies, kernel: Kernel, mean=1.):
+		super().__init__(n_copies, kernel, mean)
+
+	def _dist(self, mean, covariance):
+		return TruncatedMultivariateGaussian(mean=mean, covariance=covariance, lower=0., upper=float("inf"))
+
+	def generate(self):
+		value = self.mean.data.clone().detach()
+		for k in range(value.shape[0]):
+			dist = TruncatedMultivariateGaussian(mean=self.mean.data[k, :], covariance=self.kernel.cov,
+			                                     lower=0., upper=float("inf"))
+			value[k, :] = dist.sample(self.mean.data[k, :])
+		self._set_value(value)
+
+	def _sample_k(self, dist, value):
+		return dist.sample(value)
+
+	def jitter(self, sd: float = 0.01):
+		noise = torch.randn(self.shape) * sd
+		self._set_value((self._value * (1 + noise)).clamp(min=0.))

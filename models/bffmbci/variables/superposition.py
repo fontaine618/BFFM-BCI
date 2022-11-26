@@ -41,12 +41,11 @@ class Superposition(Variable):
 		}
 		self.name = None
 
-	def superposition(self, nontarget_process=None, target_process=None, mixing_process=None):
+	def compute_superposition(self, nontarget_process=None, target_process=None, mixing_process=None):
 		N, J = self.sequence_data.order.shape
 		K, W = self.smgp.nontarget_process.shape
 		d = self._stimulus_to_stimulus_interval
 		T = (J - 1) * d + W
-		value = torch.zeros((N, K, T))
 		if nontarget_process is None:
 			nontarget_process = self.smgp.nontarget_process.data
 		if target_process is None:
@@ -54,17 +53,6 @@ class Superposition(Variable):
 		if mixing_process is None:
 			mixing_process = self.smgp.mixing_process.data
 		time = torch.arange(0, T)
-		# for n in range(N):
-		# 	wn = self.sequence_data.order.data[n, :]
-		# 	yn = self.sequence_data.target.data[n, :]
-		# 	for j in range(J):
-		# 		ynj = yn[j]
-		# 		p_inj = (1 - ynj * mixing_process) * nontarget_process + \
-		# 		        ynj * mixing_process * target_process
-		# 		wnj = wn[j]
-		# 		shift = (time - wnj * d).long()
-		# 		which = (shift >= 0) * (shift < W)
-		# 		value[n, :, time[which]] += p_inj[:, shift[which]]
 
 		w = self.sequence_data.order.data
 		y = self.sequence_data.target.data
@@ -83,7 +71,7 @@ class Superposition(Variable):
 		return value
 
 	def generate(self):
-		self._set_value(self.superposition(), store=False)
+		self._set_value(self.compute_superposition(), store=False)
 
 	# def parameter_update_for_sampling(self, which: str, k: int):
 	# 	# so we can have the same class for both

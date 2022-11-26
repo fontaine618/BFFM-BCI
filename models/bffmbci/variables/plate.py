@@ -14,31 +14,32 @@ class Plate:
 	"""
 
 	def __init__(self, **kwargs):
-		self.__dict__ = dict()
+		self.variables = dict()
 		for k, v in kwargs.items():
 			self.__setattr__(k, v)
-			self.__dict__[k] = v
+			self.variables[k] = v
+		self.true_values = None
 
 	def __getitem__(self, item):
-		return self.__dict__[item]
+		return self.variables[item]
 
 	def __len__(self):
-		return len(self.__dict__)
+		return len(self.variables)
 
 	def __iter__(self):
-		return iter(self.__dict__)
+		return iter(self.variables)
 
 	def __contains__(self, item):
-		return item in self.__dict__
+		return item in self.variables
 
 	def keys(self):
-		return self.__dict__.keys()
+		return self.variables.keys()
 
 	def values(self):
-		return self.__dict__.values()
+		return self.variables.values()
 
 	def items(self):
-		return self.__dict__.items()
+		return self.variables.items()
 
 	@property
 	def parents(self):
@@ -54,18 +55,18 @@ class Plate:
 
 	@property
 	def children(self):
-		ids_seen = []
-		parents = dict()
+		# ids_seen = []
+		children = dict()
 		for n, variable in self.items():
 			for k, v in variable.children.items():
-				if v.id in ids_seen:
-					continue
-				ids_seen += [v.id]
-				parents[n + "." + k] = v
-		return parents
+				# if v.id in ids_seen:
+				# 	continue
+				# ids_seen += [v.id]
+				children[n + "." + k] = v
+		return children
 
 	def add_children(self, **kwargs):
-		r"""Default behaviour is to add them to add inner nodes.
+		r"""Default behaviour is to add them to all inner nodes.
 
 		For other behaviors, overwrite this."""
 		for v in self.values():
@@ -94,3 +95,18 @@ class Plate:
 		for n, c in self.children.items():
 			out += f"    {n}: {repr(c)}\n"
 		return out[:-2]
+
+	def jitter(self, sd: float = 0.1):
+		for v in self.values():
+			v.jitter(sd=sd)
+
+	@property
+	def data(self):
+		return None
+
+	def chain(self, **kwargs):
+		return None
+
+	def clear_history(self):
+		for v in self.values():
+			v.clear_history()

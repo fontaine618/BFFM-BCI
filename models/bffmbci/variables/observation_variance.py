@@ -1,6 +1,6 @@
 from .variable import Variable
 from .observations import GaussianObservations
-from models.bffmbci.utils.inverse_gamma import InverseGamma
+from ..utils.inverse_gamma import InverseGamma
 
 
 class ObservationVariance(Variable):

@@ -1,6 +1,6 @@
 import torch
-from .variable import Variable
-from models.bffmbci.utils.inverse_gamma import InverseGamma
+from .variable import Variable, ObservedVariable
+from ..utils.inverse_gamma import InverseGamma
 from torch.distributions.normal import Normal
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.gamma import Gamma
@@ -144,3 +144,9 @@ class ShrinkageFactor(Variable):
 			tau = torch.cumprod(delta, 0)
 		self._delta = delta
 		self._set_value(tau, store=store)
+
+
+class IdentityLoadings(ObservedVariable):
+
+	def __init__(self, dim):
+		super(IdentityLoadings, self).__init__(value=torch.eye(dim))

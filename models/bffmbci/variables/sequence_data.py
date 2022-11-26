@@ -11,6 +11,7 @@ class SequenceData(Plate):
 	- target: [n_sequences, n_stimuli] in {0, 1}
 	"""
 
+	_store = False
 	_stochastic = False
 
 	def __init__(self, order, target):

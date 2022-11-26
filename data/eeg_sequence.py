@@ -107,7 +107,7 @@ def process_data(states: dict, window: float = 800., sampling_rate: float = 256.
 		"begin": stimulus_begin,
 		"end": stimulus_end,
 		"sequence": stimulus_sequence,
-		"code": stimulus_code,
+		"src": stimulus_code,
 		"type": stimulus_type,
 		"length": stimulus_end - stimulus_begin,
 	}).reset_index(drop=True)
