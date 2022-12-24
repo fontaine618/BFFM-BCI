@@ -24,7 +24,7 @@ class BFFModel:
 			stimulus_to_stimulus_interval: int,
 			latent_dim: int,
 			sequences: Union[torch.Tensor, None] = None,
-			n_stimulus: Tuple[int] = (6, 6),
+			n_stimulus: Tuple[int, int] = (6, 6),
 			n_sequences: int = 15*19,
 			n_channels: int = 15,
 			independent_smgp: bool = False,
@@ -225,7 +225,7 @@ class BFFModel:
 	def generate_from_dimensions(
 			cls,
 			n_sequences: int = 15*19,
-			n_stimulus: Tuple[int] = (6, 6),
+			n_stimulus: Tuple[int, int] = (6, 6),
 			n_channels: int = 15,
 			stimulus_window: int = 55,
 			stimulus_to_stimulus_interval: int = 10,

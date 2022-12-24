@@ -218,6 +218,7 @@ class MCMCResults:
 					self.variables["smgp_factors.nontarget_process"][i, k, :] *= -1
 			flips.append(flip)
 
+	# save and load could be done only using variables to have better
 	def save(self, filename: str):
 		with open(filename, "wb") as f:
 			pickle.dump(self, f)
