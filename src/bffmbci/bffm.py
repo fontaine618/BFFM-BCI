@@ -4,14 +4,14 @@ import numpy as np
 import scipy.linalg
 import torch.nn.functional as F
 
-from src.models.bffmbci.utils import Kernel
-from src.models.bffmbci.variables import SequenceData, SMGP, Superposition, IndependentSMGP, NonnegativeSMGP
-from src.models.bffmbci.variables import GaussianObservations
-from src.models.bffmbci.variables import ObservationVariance
-from src.models.bffmbci.variables import Loadings, Heterogeneities, ShrinkageFactor
-from src.models.bffmbci.variables import NoisyProcesses
-from src.models.bffmbci.bffm_init import bffm_initializer
-from src.results.mcmc_results import MCMCResults
+from .utils import Kernel
+from .variables import SequenceData, SMGP, Superposition, IndependentSMGP, NonnegativeSMGP
+from .variables import GaussianObservations
+from .variables import ObservationVariance
+from .variables import Loadings, Heterogeneities, ShrinkageFactor
+from .variables import NoisyProcesses
+from .bffm_init import bffm_initializer
+from ..results.mcmc_results import MCMCResults
 
 
 class BFFModel:
@@ -343,17 +343,23 @@ class BFFModel:
 		}
 
 	def results(self, start=0, end=None, thin=1):
-		chains = self.chain(start, end, thin)  # preprocess first to reduce memory
+		chain = self.chain(start, end, thin)  # preprocess first to reduce memory
 		llk = self.variables["observations"].log_density_history
 		if end is None:
 			end = len(llk)
 		llk = llk[start:end:thin]
-		return MCMCResults(chains, llk, warmup=0, thin=1)
+		out = {
+			"chain": chain,
+			"log_likelihood": {"observations": llk},
+			"prior": self.prior_parameters,
+			"dimensions": self._dimensions,
+			"thinning": thin,
+		}
+		return out
 
 	def clear_history(self):
 		for v in self.variables.values():
 			v.clear_history()
-
 
 
 def _create_sequence_data(n_sequences, n_stimulus):

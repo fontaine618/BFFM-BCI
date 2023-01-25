@@ -3,11 +3,10 @@ import torch
 import pandas as pd
 import numpy as np
 import scipy.linalg
-from src.models.bffmbci.bffm import BFFModel
-from src.models.bffmbci.bffm_init import bffm_initializer
-from tensorly.decomposition import symmetric_parafac_power_iteration
+from src.bffmbci.bffm import BFFModel
+from src.bffmbci.bffm_init import bffm_initializer
 
-plt.style.use("seaborn-whitegrid")
+plt.style.use("seaborn-v0_8-whitegrid")
 pd.set_option('display.max_rows', 500)
 
 # generate some data
@@ -34,12 +33,19 @@ self = BFFModel.generate_from_dimensions(
 	kernel_tgp_loading_processes=(0.99, 0.5, 1.),
 	kernel_gp_factor=(0.99, 0.1, 1.)
 )
-sequences = model.variables["observations"].data  # N x E x T in R
-stimulus_order = model.variables["sequence_data"].order.data  # N x J in 0:J
-target_stimulus = model.variables["sequence_data"].target.data  # N x J in {0,1}
+sequences = self.variables["observations"].data  # N x E x T in R
+stimulus_order = self.variables["sequence_data"].order.data  # N x J in 0:J
+target_stimulus = self.variables["sequence_data"].target.data  # N x J in {0,1}
+stimulus_window = w
+stimulus_to_stimulus_interval = d
+latent_dim = K
+
+from src.bffmbci.utils import Kernel
+from src.bffmbci.variables import SequenceData, SMGP, Superposition
+from src.initialization.wfa import WFA
 
 
-self = BFFModelInitializer(
+self = bffm_initializer(
 	sequences=sequences,
 	stimulus_order=stimulus_order,
 	target_stimulus=target_stimulus,

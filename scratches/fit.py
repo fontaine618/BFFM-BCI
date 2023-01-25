@@ -4,7 +4,7 @@
 
 import torch
 import pandas as pd
-from models.bffmbci.bffm import BFFModel
+from src.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 plt.style.use("seaborn-whitegrid")
@@ -59,7 +59,7 @@ fig.savefig(f"./code/figures/chains_smgp/{var}_k{k}_dim{latent_dim}.pdf")
 
 import torch
 import pandas as pd
-from models.bffmbci.bffm import BFFModel
+from src.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 plt.style.use("seaborn-whitegrid")

@@ -2,10 +2,11 @@ from typing import Tuple, Union, Any
 
 import torch
 import pickle
+import arviz as az
 
 
 class MCMCResults:
-
+	# TODO Add (non)target_signal
 	_metrics = {
 		"loadings": [
 			"frobenius",
@@ -25,7 +26,7 @@ class MCMCResults:
 	}
 
 	_diagnostics = {
-
+		# TODO : add ESS (https://github.com/tensorflow/probability/blob/v0.19.0/tensorflow_probability/python/mcmc/diagnostic.py)
 	}
 
 	def __init__(
@@ -220,13 +221,19 @@ class MCMCResults:
 
 	# save and load could be done only using variables to have better
 	def save(self, filename: str):
+		out = {
+			"variables": self.variables,
+			"warmup": self.warmup,
+			"thin": self.thin
+		}
 		with open(filename, "wb") as f:
-			pickle.dump(self, f)
+			pickle.dump(out, f)
 
 	@classmethod
 	def load(cls, filename: str):
 		with open(filename, "rb") as f:
-			return pickle.load(f)
+			out = pickle.load(f)
+			return cls(**out)
 
 	def __len__(self):
 		return self._length

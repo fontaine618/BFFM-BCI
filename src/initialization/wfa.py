@@ -26,8 +26,25 @@ class WFA:
 		self._fit(tol, max_iter)
 
 	def _initialize(self):
-		self._loadings = torch.randn(self.n_features, self.latent_dim)
-		self._observation_variance = torch.ones(self.n_features)
+		# self._loadings = torch.randn(self.n_features, self.latent_dim)
+		# self._observation_variance = torch.ones(self.n_features)
+		# self._e_step()
+
+		# compute variance
+		var = torch.cov(self._X.T)
+
+		# get top eigenvectors
+		evals, evecs = torch.linalg.eigh(var)
+		evals = evals.flip(0)[:self.latent_dim]
+		evecs = evecs.flip(1)[:, :self.latent_dim]
+		evecs *= evals.reshape(1, -1).sqrt()
+
+		# reconstructed matrix
+		resid = var - evecs @ evecs.T
+		diag = resid.diag()
+
+		self._loadings = evecs
+		self._observation_variance = diag
 		self._e_step()
 
 	def _fit(self, tol: float, max_iter: int):

@@ -1,10 +1,10 @@
 import torch
 import copy
 import pandas as pd
-from src.models.bffmbci.bffm import BFFModel
+from src.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-plt.style.use("seaborn-whitegrid")
+plt.style.use("seaborn-v0_8-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
 

@@ -4,9 +4,9 @@ import numpy as np
 import scipy.linalg
 import torch.nn.functional as F
 
-from src.models.bffmbci.utils import Kernel
-from src.models.bffmbci.variables import SequenceData, SMGP, Superposition
-from src.initialization.wfa import WFA
+from .utils import Kernel
+from .variables import SequenceData, SMGP, Superposition
+from ..initialization.wfa import WFA
 
 
 def bffm_initializer(
