@@ -1,0 +1,93 @@
+To do
+=====
+
+[x] MCMCResults class
+  [x] Contains chain
+  [x] Output posterior mean dict (warmup, thinning)
+[x] Output results to MCMCResults
+[x] Implement metrics
+[x] Implement a function to output true values from generated data
+[x] Implement saving and loading results
+[x] Implement log-likelihood saving
+[x] Implement TG sampling on GPU <=== very important
+[ ] Implement loading into arviz
+[ ] Check sign flip & ordering
+[ ] Check new truncated Gaussian
+[ ] Implement predictions
+
+
+Profiling
+=========
+100 repetitions
+
+88.587    0.886 bffm.py:269(sample)
+62.627    0.104 gaussian_process.py:65(sample)
+20.957    0.001 _distn_infrastructure.py:1892(__init__)
+21.261    0.001 _distn_infrastructure.py:434(__init__)
+12.911    0.000 _distn_infrastructure.py:785(_construct_doc)
+21.345    0.001 _distn_infrastructure.py:838(freeze)
+21.397    0.001 _distn_infrastructure.py:858(__call__)
+10.307    0.000 constraints.py:508(check)
+15.425    0.000 distribution.py:35(__init__)
+12.029    0.000 doccer.py:13(docformat)
+24.683    0.062 gaussian_process.py:104(_sample_k)
+24.583    0.061 gaussian_process.py:128(_sample_k)
+62.627    0.104 gaussian_process.py:65(sample)
+20.301    0.000 multivariate_normal.py:123(__init__)
+25.030    0.250 noisy_process.py:38(sample)
+62.636    0.313 plate.py:79(sample)
+49.207    0.062 truncated_gaussian.py:19(sample)
+48.889    0.002 truncated_gaussian.py:24(_sample_i)
+49.263    0.062 truncated_gaussian.py:87(sample)
+8.870     0.000 {built-in method torch._C._linalg.linalg_cholesky}
+
+- more than 50% of the time is spent in truncated gaussian sampling
+- around 25% of the time is spent in noisy process sampling
+- there seems to be a lot of time spent in building the distribution?
+
+- the 12s in doccer is from scipy and they mention to use -OO
+to remove it ...
+
+- a single call removes all the constrains line
+
+- when calling mvt normal, the fastest is to pass cholesky
+
+ 1.003    0.000 _tensor.py:33(wrapped)
+ 2.457    0.002 _vmap_internals.py:315(wrapped)
+42.201    0.422 bffm.py:269(sample)
+ 2.769    0.000 distribution.py:146(sample)
+ 1.079    0.000 functional.py:192(einsum)
+ 2.577    0.002 functional.py:430(_jacfwd)
+ 2.371    0.002 functional.py:447(jvp)
+ 2.588    0.002 functional.py:487(jacobian)
+ 9.926    0.025 gaussian_process.py:104(_sample_k)
+ 9.941    0.025 gaussian_process.py:128(_sample_k)
+ 3.651    0.003 gaussian_process.py:36(_parameters_from_child)
+ 3.116    0.003 gaussian_process.py:50(_get_linear_transform)
+ 2.594    0.001 gaussian_process.py:54(f)
+31.875    0.053 gaussian_process.py:65(sample)
+ 5.211    0.000 multivariate_normal.py:123(__init__)
+ 2.343    0.000 multivariate_normal.py:207(rsample)
+ 9.757    0.098 noisy_process.py:38(sample)
+ 2.415    0.000 normal.py:50(__init__)
+ 4.197    0.000 normal.py:85(cdf)
+ 1.399    0.000 normal.py:90(icdf)
+31.883    0.159 plate.py:79(sample)
+ 1.588    0.001 superposition.py:44(compute_superposition)
+10.119    0.000 truncated_gaussian.py:102(_truncated_standard_normal_rv)
+19.820    0.025 truncated_gaussian.py:19(sample)
+19.671    0.001 truncated_gaussian.py:24(_sample_i)
+19.865    0.025 truncated_gaussian.py:95(sample)
+ 4.384    0.000 {built-in method torch._C._linalg.linalg_cholesky}
+ 7.803    0.004 {built-in method torch.inverse}
+ 2.591    0.000 {built-in method torch.where}
+
+ - I removed all the docstring stuff, still 50% in truncated gaussian
+ - Is it slow because python loop?
+
+
+Commands
+========
+
+ssh simon@192.168.0.208
+scp <files> simon@simfont:/home/simon/Documents/BCI/experiments/test3/chains

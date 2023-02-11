@@ -55,7 +55,9 @@ class WFA:
 			llk = self.log_likelihood()
 			diff = (llk - prev_llk) / abs(prev_llk)
 			prev_llk = llk
-			print(i, llk, diff, "<==================== EM did not decrease" if diff < 0 else "")
+			print(f"[WFA] Iteration: {i:>4}  Log-likelihood: {llk:>10.2f}  "
+				  f"Relative difference: {diff:>10.2e}  "
+				  f"{'(increased)' if diff < 0 else ''}")
 			if abs(diff) < tol:
 				break
 		# post-processing
@@ -66,7 +68,7 @@ class WFA:
 		self._observation_variance.clamp_min_(1e-5)
 		self._e_step()  # run one more E-step to realign the factors
 		llk = self.log_likelihood()
-		print("c", llk)
+		print(f"[WFA] Converged        Log-likelihood: {llk:>10.2f}")
 
 	def _e_step(self):
 		var = torch.inverse(torch.einsum(

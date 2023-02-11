@@ -100,13 +100,18 @@ class Plate:
 		for v in self.values():
 			v.jitter(sd=sd)
 
-	@property
-	def data(self):
-		return None
-
 	def chain(self, **kwargs):
 		return None
 
 	def clear_history(self):
 		for v in self.values():
 			v.clear_history()
+
+	@property
+	def data(self):
+		return {k: v.data for k, v in self.variables.items()}
+
+	@data.setter
+	def data(self, value: dict[str: torch.Tensor]):
+		for k, v in value.items():
+			self.variables[k].data = v

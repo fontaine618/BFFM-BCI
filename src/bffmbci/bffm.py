@@ -1,5 +1,6 @@
 from typing import Tuple, Union
 import torch
+import pickle
 import numpy as np
 import scipy.linalg
 import torch.nn.functional as F
@@ -11,7 +12,7 @@ from .variables import ObservationVariance
 from .variables import Loadings, Heterogeneities, ShrinkageFactor
 from .variables import NoisyProcesses
 from .bffm_init import bffm_initializer
-from ..results.mcmc_results import MCMCResults
+from ..results_old.mcmc_results import MCMCResults
 
 
 class BFFModel:
@@ -246,6 +247,24 @@ class BFFModel:
 			**kwargs
 		)
 
+	@classmethod
+	def load_dict(cls, data: dict):
+		# data should be a dict with at least
+		# - variables
+		# - dimensions
+		# - prior
+		# For example, this could be the output of the result method
+		obj = cls.generate_from_dimensions(**data["dimensions"], **data["prior"])
+		obj.data = data["variables"]
+		obj.clear_history() # we make sure we do not repeat the last value
+		return obj
+
+	@classmethod
+	def load_file(cls, filename: str):
+		with open(filename, "rb") as f:
+			data = pickle.load(f)
+		return cls.load_dict(data)
+
 	def set(self, **kwargs):
 		for k, v in kwargs.items():
 			self.variables[k].data = v
@@ -270,7 +289,8 @@ class BFFModel:
 		if sampling_order is None:
 			sampling_order = self._sampling_order
 		if random:
-			sampling_order = np.random.choice(sampling_order, len(sampling_order), replace=False)
+			random_order = torch.randperm(len(sampling_order)).tolist()
+			sampling_order = [sampling_order[i] for i in random_order]
 		for var in sampling_order:
 			try:
 				if "." in var:
@@ -316,7 +336,10 @@ class BFFModel:
 		# update smgp_factors: first set everything to constant, then update with the factors
 		self.variables["smgp_factors"].nontarget_process.data.zero_()
 		self.variables["smgp_factors"].target_process.data.zero_()
-		self.variables["smgp_factors"].mixing_process.data.fill_(1.)
+		self.variables["smgp_factors"].mixing_process.data.fill_(0.5)
+		self.variables["smgp_scaling"].nontarget_process.data.fill_(1.)
+		self.variables["smgp_scaling"].target_process.data.fill_(1.)
+		self.variables["smgp_scaling"].mixing_process.data.fill_(0.5)
 		self.sample(["mean_factor_processes"])
 		self.sample(["smgp_factors"])
 		self.sample(["mean_factor_processes"])
@@ -330,10 +353,15 @@ class BFFModel:
 		self.sample(["smgp_scaling"])
 		self.sample(["loading_processes"])
 		self.clear_history()
-		self.variables["observations"].log_density_history = []
 
-	def current_values(self):
+	@property
+	def data(self):
 		return {k: v.data for k, v in self.variables.items()}
+
+	@data.setter
+	def data(self, value: dict[str: torch.Tensor]):
+		for k, v in value.items():
+			self.variables[k].data = v
 
 	def chain(self, start=0, end=None, thin=1):
 		return {
@@ -354,12 +382,19 @@ class BFFModel:
 			"prior": self.prior_parameters,
 			"dimensions": self._dimensions,
 			"thinning": thin,
+			"variables": self.data
 		}
 		return out
+
+	def save(self, filename):
+		results = self.results()
+		with open(filename, "wb") as f:
+			pickle.dump(results, f)
 
 	def clear_history(self):
 		for v in self.variables.values():
 			v.clear_history()
+		self.variables["observations"].log_density_history = []
 
 
 def _create_sequence_data(n_sequences, n_stimulus):

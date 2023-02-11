@@ -98,4 +98,4 @@ class GaussianObservations(ObservedVariable):
 
 	def time_kernel(self, k):
 		sigk = self.observation_variance.data[k]
-		return Kernel.from_covariance_matrix(cov=torch.eye(self.shape[2])*sigk)
+		return Kernel.identity_times(self.shape[2], sigk)

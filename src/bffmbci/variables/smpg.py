@@ -14,7 +14,7 @@ class SMGP(Plate):
 	Note that when zeta (mixing_process) is zero we get nontarget_process,
 	and target_process when equal to 1.
 
-	Children must be a Superposition so we can access its children to get values.
+	Children must be a Superposition, so we can access its children to get values.
 	"""
 
 	_store = True
@@ -27,9 +27,9 @@ class SMGP(Plate):
 			mean_tgp=0.5,
 			mean_gp=0.,
 	):
-		self.nontarget_process: GaussianProcess = None
-		self.target_process: GaussianProcess = None
-		self.mixing_process: TruncatedGaussianProcess01 = None
+		self.nontarget_process: GaussianProcess | None = None
+		self.target_process: GaussianProcess | None = None
+		self.mixing_process: TruncatedGaussianProcess01 | None = None
 		self.superposition = None
 		super().__init__(
 			nontarget_process=GaussianProcess(

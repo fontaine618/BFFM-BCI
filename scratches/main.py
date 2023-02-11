@@ -1,10 +1,11 @@
 import torch
 import pandas as pd
-from src.models.bffmbci.bffm import BFFModel
-from src.results.mcmc_results import MCMCResults
+from src.bffmbci.bffm import BFFModel
+from src.results_old.mcmc_results import MCMCResults
+from src.bffmbci.utils.truncated_gaussian import COUNTS
 import matplotlib.pyplot as plt
 
-plt.style.use("seaborn-whitegrid")
+plt.style.use("seaborn-v0_8-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
@@ -19,14 +20,73 @@ model = BFFModel.generate_from_dimensions(
 	stimulus_to_stimulus_interval=10,
 	stimulus_window=55,
 	n_stimulus=(3, 3),
-	n_sequences=51,
+	n_sequences=200,
 	nonnegative_smgp=True,
 	heterogeneities=3.,
 	shrinkage_factor=(2., 10.)
 )
-true_values = model.current_values()
+true_values = model.data
 true_llk = model.variables["observations"].log_density
 true_values["observation_log_likelihood"] = true_llk
+self = model
+
+# torch.manual_seed(0)
+model.initialize_chain()
+
+# run for a bit
+# torch.manual_seed(0)
+for i in range(15):
+	model.sample()
+	print(f"[MCMC] Iteration: {i:>4} Log-likelihood: "
+		  f"{model.variables['observations'].log_density_history[-1]:>20.2f}")
+
+# save / load
+filename = "/home/simon/Documents/BCI/experiments/tmp.model"
+model.save(filename)
+model = BFFModel.load_file(filename)
+
+# check nans
+for k, v in model.data.items():
+	if isinstance(v, dict):
+		for kk, vv in v.items():
+			print(k, kk, torch.isnan(vv).double().mean().item())
+	else:
+		print(k, torch.isnan(v).double().mean().item())
+
+# check large
+for k, v in model.data.items():
+	if isinstance(v, dict):
+		for kk, vv in v.items():
+			print(k, kk, torch.abs(vv).max().item())
+	else:
+		print(k, torch.abs(v).max().item())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 chain_id = 1
 
 

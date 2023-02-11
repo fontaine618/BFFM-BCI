@@ -41,3 +41,11 @@ class Kernel:
 		inv = torch.cholesky_inverse(chol)
 		cholinv = torch.inverse(chol)
 		return Kernel(cov, inv, chol, cholinv)
+
+	@classmethod
+	def identity_times(cls, shape, value):
+		cov = torch.eye(shape) * value
+		inv = torch.eye(shape) / value
+		chol = torch.eye(shape) * value.sqrt()
+		cholinv = torch.eye(shape) / value.sqrt()
+		return Kernel(cov, inv, chol, cholinv)
