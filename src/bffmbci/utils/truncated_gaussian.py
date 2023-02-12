@@ -29,13 +29,13 @@ class TruncatedStandardMultivariateGaussian:
 		self._dim = lower.shape
 
 	def sample(self, value):
-		value.clamp_(min=self._lower, max=self._upper)
+		eps = ((self._upper - self._lower) * 1e-6).clamp(max=1e-6)
+		value.clamp_(min=self._lower + eps, max=self._upper - eps)
 		for i in range(self._dim[0]):
 			self._sample_i(value, i)
 		return value
 
 	def _sample_i(self, value, i):
-		# TODO: we could probably make this much faster by using R=I
 		r_i = self._rotation[:, i]
 		which = torch.where(torch.arange(0, self._dim[0]) == i, False, True)
 		r_mi = self._rotation[:, which]
