@@ -13,7 +13,7 @@ latent_dim = 3
 n_iter = 100
 n_chains = 5
 
-torch.manual_seed(0)
+torch.manual_seed(1)
 model = BFFModel.generate_from_dimensions(
 	latent_dim=latent_dim,
 	n_channels=7,
@@ -23,8 +23,9 @@ model = BFFModel.generate_from_dimensions(
 	n_sequences=200,
 	nonnegative_smgp=True,
 	heterogeneities=3.,
-	shrinkage_factor=(2., 10.)
+	shrinkage_factor=(10., 10.),
 )
+
 true_values = model.data
 true_llk = model.variables["observations"].log_density
 true_values["observation_log_likelihood"] = true_llk
@@ -35,10 +36,13 @@ model.initialize_chain()
 
 # run for a bit
 # torch.manual_seed(0)
-for i in range(15):
+for i in range(1000):
 	model.sample()
+	llk = model.variables['observations'].log_density_history[-1]
 	print(f"[MCMC] Iteration: {i:>4} Log-likelihood: "
-		  f"{model.variables['observations'].log_density_history[-1]:>20.2f}")
+		  f"{llk:>20.2f}")
+	if abs(llk) > 1e8:
+		break
 
 # save / load
 filename = "/home/simon/Documents/BCI/experiments/tmp.model"

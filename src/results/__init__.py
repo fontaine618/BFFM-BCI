@@ -1,1 +1,1 @@
-from .mcmc_results import MCMCResults
+from .mcmc_results import MCMCResults, _add_transformed_variables, _flatten_dict

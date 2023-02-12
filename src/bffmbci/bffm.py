@@ -381,7 +381,8 @@ class BFFModel:
 			"log_likelihood": {"observations": llk},
 			"prior": self.prior_parameters,
 			"dimensions": self._dimensions,
-			"thinning": thin,
+			"thinned": thin,
+			"warmed_up": start,
 			"variables": self.data
 		}
 		return out

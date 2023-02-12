@@ -10,10 +10,11 @@ To do
 [x] Implement saving and loading results
 [x] Implement log-likelihood saving
 [x] Implement TG sampling on GPU <=== very important
-[ ] Implement loading into arviz
-[ ] Check sign flip & ordering
-[ ] Check new truncated Gaussian
+[ ] Can I improve TG sampling?
+[x] Implement loading into arviz
+[x] Check new truncated Gaussian
 [ ] Implement predictions
+[ ] Check sign flip & ordering
 
 
 Profiling
