@@ -12,7 +12,6 @@ from .variables import ObservationVariance
 from .variables import Loadings, Heterogeneities, ShrinkageFactor
 from .variables import NoisyProcesses
 from .bffm_init import bffm_initializer
-from ..results_old.mcmc_results import MCMCResults
 
 
 class BFFModel:
