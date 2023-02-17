@@ -1,6 +1,7 @@
 import torch
 import torch.nn
 import itertools
+import warnings
 
 
 class Variable:
@@ -147,7 +148,7 @@ class ObservedVariable(Variable):
 
 	def _set_value(self, value, store=False):
 		if self._value is not None:
-			raise RuntimeError("Trying to set the value of an observed variable.")
+			warnings.warn("Trying to set the value of an observed variable.", RuntimeWarning)
 		super()._set_value(value, store)
 
 	def jitter(self, sd: float = 0.1):

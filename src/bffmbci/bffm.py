@@ -225,7 +225,8 @@ class BFFModel:
 	@classmethod
 	def generate_from_dimensions(
 			cls,
-			n_sequences: int = 15*19,
+			n_characters: int = 19,
+			n_repetitions: int = 15,
 			n_stimulus: Tuple[int, int] = (6, 6),
 			n_channels: int = 15,
 			stimulus_window: int = 55,
@@ -233,7 +234,8 @@ class BFFModel:
 			latent_dim: int = 3,
 			**kwargs
 	):
-		stimulus_order, target_stimulus = _create_sequence_data(n_sequences, n_stimulus)
+		stimulus_order, target_stimulus = _create_sequence_data(n_characters, n_repetitions, n_stimulus)
+		n_sequences = n_characters * n_repetitions
 		return cls(
 			sequences=None,
 			stimulus_order=stimulus_order,
@@ -398,7 +400,8 @@ class BFFModel:
 		self.variables["observations"].log_density_history = []
 
 
-def _create_sequence_data(n_sequences, n_stimulus):
+def _create_sequence_data(n_characters, n_repetitions, n_stimulus):
+	n_sequences = n_characters * n_repetitions
 	stimulus_order = torch.hstack([
 		torch.vstack([torch.randperm(n_stimulus[i]) for _ in range(n_sequences)]) +
 		(n_stimulus[i - 1] if i > 0 else 0)
@@ -408,9 +411,10 @@ def _create_sequence_data(n_sequences, n_stimulus):
 		torch.randint(
 			low=n_stimulus[i - 1] if i > 0 else 0,
 			high=(n_stimulus[i - 1] if i > 0 else 0) + n_stimulus[i],
-			size=(n_sequences, 1)
+			size=(n_characters, 1)
 		)
 		for i in range(len(n_stimulus))
 	])
+	target_stimulus = target_stimulus.repeat(n_repetitions, 1)
 	target_stimulus = F.one_hot(target_stimulus, num_classes=sum(n_stimulus)).max(1).values
 	return stimulus_order, target_stimulus
