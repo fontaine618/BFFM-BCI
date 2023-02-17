@@ -4,6 +4,7 @@ import numpy as np
 import arviz as az
 import pickle
 import copy
+from ..bffmbci import BFFMPredict
 
 
 suffix = "[MCMCResults] "
@@ -185,9 +186,15 @@ class MCMCResults:
     def to_arviz(self):
         return az.from_dict(posterior={k: v.cpu() for k, v in self.chains.items()})
 
-    def to_predict(self, n_samples: int = 1000, thin: int = 1):
+    def to_predict(self, thin: int | None = None, n_samples: int | None = 1000):
         """Create a Predict object from the MCMCResults."""
-        return Predict.from_mcmc_results(self, n_samples, thin)
+        if thin is None:
+            thin = int(np.ceil(self.n_samples * self.n_chains / n_samples))
+        variables = {
+            k: self.chains[k].flatten(0, 1)[::thin, ...]
+            for k in self._sufficient_for_prediction
+        }
+        return BFFMPredict(variables=variables, dimensions=self.dimensions, prior=self.prior)
 
 
 def _add_transformed_variables(chains):
