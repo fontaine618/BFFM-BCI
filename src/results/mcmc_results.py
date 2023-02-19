@@ -5,6 +5,7 @@ import arviz as az
 import pickle
 import copy
 from ..bffmbci import BFFMPredict
+import warnings
 
 
 suffix = "[MCMCResults] "
@@ -136,9 +137,15 @@ class MCMCResults:
         dims = {k: v.shape[0:2] for k, v in self.chains.items()}
         dims0 = next(iter(dims.values()))
         if not all([d == dims0 for d in dims.values()]):
-            raise ValueError(f"Variables have different first two dimensions. \n"
-                             f"Expected {dims0}, got {dims}.\nPerhaps "
-                             f"a chain dimension was not added?")
+            warnings.warn(f"Variables have different first two dimensions. \n"
+                             f"Expected {dims0}, got {dims}.\n"
+                          f"The chain was patched.", UserWarning)
+            max_length = max([d[1] for d in dims.values()])
+            for k, dim in dims.items():
+                if dim[1] < max_length:
+                    self.chains[k] = torch.cat([
+                        self.chains[k], self.chains[k][:, (dim[1]-max_length):, ...]
+                    ], 1)
 
     def _check_parameters(self, other: "MCMCResults"):
         """Check that the other has the same prior, dimensions, etc."""

@@ -14,13 +14,17 @@ class BFFMPredict:
     smgp_factors.target_signal (N x K x T)
     smgp_scaling.nontarget_process (N x K x T)
     smgp_scaling.target_signal (N x K x T)
+
+    Note that we index row first then column
+    So the char label should run by row first.
     """
 
     def __init__(
             self,
             variables: dict[str, torch.Tensor],
             dimensions: dict,
-            prior: dict
+            prior: dict,
+            character_labels: list[str] | None = None
     ):
         self.variables = variables
         self.dimensions = dimensions
@@ -32,6 +36,12 @@ class BFFMPredict:
             loc=torch.zeros(self._kernel.shape[0]),
             scale_tril=self._kernel.chol
         )
+        if character_labels is None:
+            nc = 1
+            for i in self.dimensions["n_stimulus"]:
+                nc *= i
+            character_labels = [f"C{i+1}" for i in range(nc)]
+        self.character_labels = character_labels
 
     @property
     def n_samples(self):
@@ -179,6 +189,7 @@ class BFFMPredict:
             order: torch.Tensor,  # M x J
             sequence: torch.Tensor,  # M x E x T,
             factor_samples: int,
+            character_idx: torch.Tensor | None = None,  # M
     ):
         N = self.n_samples
         log_probs = [
@@ -186,13 +197,39 @@ class BFFMPredict:
             for sample_idx in range(N)
         ]
         log_probs = torch.stack(log_probs, 2)  # M x L x N
-        log_probs -= log_probs.logsumexp(1, keepdim=True)  # center == map to probabilities
-        log_probs = torch.logsumexp(log_probs, 2, keepdim=False)  # M x L
-        log_probs -= torch.log(torch.Tensor([N]))
-        pred = torch.argmax(log_probs, 1)
-        pred_one_hot = self.combinations[pred, :]
-        return log_probs, pred_one_hot
+        if character_idx is None:
+            log_probs -= log_probs.logsumexp(1, keepdim=True)  # center == map to probabilities
+            log_probs = torch.logsumexp(log_probs, 2, keepdim=False)  # M x L
+            log_probs -= torch.log(torch.Tensor([N]))  # take MC average
+            pred = torch.argmax(log_probs, 1)
+            pred_one_hot = self.combinations[pred, :]
+            return log_probs, pred_one_hot
+        else:
+            character_idx = character_idx.flatten()
+            chars = character_idx.unique()
+            max_rep = max([(character_idx == char).int().sum().item() for char in chars])
+            wide_log_probs = torch.zeros((len(chars), max_rep, log_probs.shape[1], log_probs.shape[2]))
+            for i, char in enumerate(chars):
+                idx = character_idx == char
+                wide_log_probs[i, :sum(idx), ...] = log_probs[idx, ...]
+
+            # first option: aggregate over samples later
+            wide_log_probs_cumsum = torch.cumsum(wide_log_probs, 1)
+            wide_log_probs_cumsum = torch.logsumexp(wide_log_probs_cumsum, -1)
+            wide_log_probs_cumsum -= torch.log(torch.Tensor([N]))
+            wide_log_probs_cumsum -= wide_log_probs_cumsum.logsumexp(-1, keepdim=True)
+
+            # second option: aggregate probabilities (this looks a bit better? overfitting?)
+            wide_log_probs_ = torch.logsumexp(wide_log_probs, -1) - torch.log(torch.Tensor([N]))
+            wide_log_probs_cumsum = torch.cumsum(wide_log_probs_, 1)
+            wide_log_probs_cumsum -= wide_log_probs_cumsum.logsumexp(-1, keepdim=True)
+
+            wide_pred = wide_log_probs_cumsum.argmax(2)
+            wide_pred_one_hot = self.combinations[wide_pred, :]
+            return chars, wide_log_probs, wide_pred_one_hot
 
     def one_hot_to_combination_id(self, one_hot: torch.Tensor):
-        # TODO
-        pass
+        # one_hot should be ... x n_combinations
+        ips = torch.einsum("...i,ji->...j", one_hot.double(), self.combinations.double())
+        idx = torch.argmax(ips, -1)
+        return idx

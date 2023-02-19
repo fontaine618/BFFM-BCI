@@ -16,6 +16,8 @@ To do
 [ ] Implement predictions
 [ ] Check sign flip & ordering
 
+[ ] Understand why I am missing 1 in test4/chain1/loadings
+
 
 Profiling
 =========
@@ -92,3 +94,5 @@ Commands
 
 ssh simon@192.168.0.208
 scp <files> simon@simfont:/home/simon/Documents/BCI/experiments/test3/chains
+# get from GL
+scp -r uniqname@greatlakes-xfer.arc-ts.umich.edu:./remotedir localdir
