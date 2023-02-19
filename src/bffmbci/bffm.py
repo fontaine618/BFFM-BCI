@@ -231,10 +231,10 @@ class BFFModel:
 			stimulus_window: int = 55,
 			stimulus_to_stimulus_interval: int = 10,
 			latent_dim: int = 3,
+			n_sequences: int = None,
 			**kwargs
 	):
 		stimulus_order, target_stimulus = _create_sequence_data(n_characters, n_repetitions, n_stimulus)
-		n_sequences = n_characters * n_repetitions
 		return cls(
 			sequences=None,
 			stimulus_order=stimulus_order,
@@ -242,9 +242,8 @@ class BFFModel:
 			stimulus_window=stimulus_window,
 			stimulus_to_stimulus_interval=stimulus_to_stimulus_interval,
 			latent_dim=latent_dim,
-			n_sequences=n_sequences,
 			n_channels=n_channels,
-			n_stimulus=n_stimulus,
+			n_sequences=n_characters * n_repetitions,
 			**kwargs
 		)
 
@@ -260,6 +259,14 @@ class BFFModel:
 		obj.clear_history() # we make sure we do not repeat the last value
 		return obj
 
+	def generate_local_variables(self):
+		for vname in [
+			"loading_processes",
+			"mean_factor_processes",
+			"factor_processes",
+		]:
+			self.variables[vname].generate()
+
 	@classmethod
 	def load_file(cls, filename: str):
 		with open(filename, "rb") as f:
@@ -268,6 +275,7 @@ class BFFModel:
 
 	def set(self, **kwargs):
 		for k, v in kwargs.items():
+			print(k)
 			self.variables[k].data = v
 
 	def _initialize_prior_parameters(self, **kwargs):

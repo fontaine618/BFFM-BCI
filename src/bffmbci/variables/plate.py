@@ -101,7 +101,10 @@ class Plate:
 			v.jitter(sd=sd)
 
 	def chain(self, **kwargs):
-		return None
+		return {
+			k: v.chain(**kwargs)
+			for k, v in self.items()
+		}
 
 	def clear_history(self):
 		for v in self.values():

@@ -212,11 +212,10 @@ class BFFMPredict:
             for i, char in enumerate(chars):
                 idx = character_idx == char
                 wide_log_probs[i, :sum(idx), ...] = log_probs[idx, ...]
-
+            # now wide_log_probs should be nchar x nrep x L x N
             # first option: aggregate over samples later
             wide_log_probs_cumsum = torch.cumsum(wide_log_probs, 1)
             wide_log_probs_cumsum = torch.logsumexp(wide_log_probs_cumsum, -1)
-            wide_log_probs_cumsum -= torch.log(torch.Tensor([N]))
             wide_log_probs_cumsum -= wide_log_probs_cumsum.logsumexp(-1, keepdim=True)
 
             # second option: aggregate probabilities (this looks a bit better? overfitting?)

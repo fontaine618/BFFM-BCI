@@ -54,25 +54,25 @@ class SMGP(Plate):
 		beta1 = (1. - zeta) * alpha0 + zeta * alpha1
 		return alpha0, beta1
 
-	@property
-	def data(self):
-		proc = self.processes
-		return {
-			"nontarget_process": proc[0],
-			"target_process": proc[1],
-			"mixing_process": self.mixing_process.data
-		}
+	# @property
+	# def data(self):
+	# 	proc = self.processes
+	# 	return {
+	# 		"nontarget_process": proc[0],
+	# 		"target_process": proc[1],
+	# 		"mixing_process": self.mixing_process.data
+	# 	}
 
-	def chain(self, start=0, end=None, thin=1):
-		zeta = self.mixing_process.chain(start=start, end=end, thin=thin)
-		alpha0 = self.nontarget_process.chain(start=start, end=end, thin=thin)
-		alpha1 = self.target_process.chain(start=start, end=end, thin=thin)
-		beta1 = (1. - zeta) * alpha0 + zeta * alpha1
-		return {
-			"nontarget_process": alpha0,
-			"target_process": beta1,
-			"mixing_process": zeta
-		}
+	# def chain(self, start=0, end=None, thin=1):
+	# 	zeta = self.mixing_process.chain(start=start, end=end, thin=thin)
+	# 	alpha0 = self.nontarget_process.chain(start=start, end=end, thin=thin)
+	# 	alpha1 = self.target_process.chain(start=start, end=end, thin=thin)
+	# 	beta1 = (1. - zeta) * alpha0 + zeta * alpha1
+	# 	return {
+	# 		"nontarget_process": alpha0,
+	# 		"target_process": beta1,
+	# 		"mixing_process": zeta
+	# 	}
 
 
 class IndependentSMGP(SMGP):
