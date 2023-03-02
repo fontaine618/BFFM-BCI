@@ -79,13 +79,16 @@ class GaussianObservations(ObservedVariable):
 		return mean
 
 	@property
-	def log_density(self):
+	def log_density_per_sequence(self):
 		var = self.observation_variance.data.unsqueeze(0).unsqueeze(2)
 		N, _, T = self.shape
 		llk = -(self.data - self.mean()).pow(2.) / (2. * var)
-		llk = llk.sum()
-		llk -= 0.5 * N * T * torch.log(var * 2. * math.pi).sum()
-		return llk.item()
+		llk -= 0.5 * torch.log(var * 2. * math.pi).reshape(1, -1, 1)
+		return llk.sum([1, 2])
+
+	@property
+	def log_density(self):
+		return self.log_density_per_sequence.sum().item()
 
 	def store_log_density(self):
 		self.log_density_history.append(self.log_density)

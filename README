@@ -10,13 +10,18 @@ To do
 [x] Implement saving and loading results
 [x] Implement log-likelihood saving
 [x] Implement TG sampling on GPU <=== very important
-[ ] Can I improve TG sampling?
 [x] Implement loading into arviz
 [x] Check new truncated Gaussian
-[ ] Implement predictions
+[x] Implement predictions
 [ ] Check sign flip & ordering
-
-[ ] Understand why I am missing 1 in test4/chain1/loadings
+[ ] Can I improve TG sampling?
+[ ] Understand why I am missing 1 in test4/old/chain1/loadings
+[ ] Implement analytical marginalization & MAP
+[ ] Experiment with number of training repetitions
+[ ] Chain alignments
+[ ] Prediction metrics
+[ ]
+[ ]
 
 
 Profiling
@@ -95,4 +100,4 @@ Commands
 ssh simon@192.168.0.208
 scp <files> simon@simfont:/home/simon/Documents/BCI/experiments/test3/chains
 # get from GL
-scp -r uniqname@greatlakes-xfer.arc-ts.umich.edu:./remotedir localdir
+scp -r simfont@greatlakes-xfer.arc-ts.umich.edu:./Documents/BCI/experiments/test4/chains ./experiments/test4/chains/

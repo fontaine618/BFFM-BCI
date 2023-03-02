@@ -36,10 +36,12 @@ class MCMCResults:
     _sufficient_for_prediction = [
         "loadings",
         "observation_variance",
+        "smgp_factors.mixing_process",
         "smgp_factors.nontarget_process",
-        "smgp_factors.target_signal",
+        "smgp_factors.target_process",
+        "smgp_scaling.mixing_process",
         "smgp_scaling.nontarget_process",
-        "smgp_scaling.target_signal",
+        "smgp_scaling.target_process",
     ]
 
     def __init__(

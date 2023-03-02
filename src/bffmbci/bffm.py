@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import scipy.linalg
 import torch.nn.functional as F
+import copy
 
 from .utils import Kernel
 from .variables import SequenceData, SMGP, Superposition, IndependentSMGP, NonnegativeSMGP
@@ -64,6 +65,14 @@ class BFFModel:
 
 			"observation_variance"
 		]
+
+	def filter(self, sequence_ids: torch.Tensor):
+		self._dimensions["n_sequences"] = len(sequence_ids)
+		self.variables["sequence_data"].filter(sequence_ids)
+		self.variables["loading_processes"].filter(sequence_ids)
+		self.variables["mean_factor_processes"].filter(sequence_ids)
+		self.variables["factor_processes"].filter(sequence_ids)
+		self.variables["observations"].filter(sequence_ids)
 
 	def _prepare_model(
 			self,
@@ -275,7 +284,6 @@ class BFFModel:
 
 	def set(self, **kwargs):
 		for k, v in kwargs.items():
-			print(k)
 			self.variables[k].data = v
 
 	def _initialize_prior_parameters(self, **kwargs):

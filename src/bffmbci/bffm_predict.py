@@ -1,8 +1,10 @@
 import torch
+import math
 from .utils import Kernel
 import scipy
 import numpy as np
 from torch.distributions.multivariate_normal import MultivariateNormal
+from . import BFFModel
 
 
 class BFFMPredict:
@@ -56,176 +58,159 @@ class BFFMPredict:
         combinations = torch.nn.functional.one_hot(combinations.long(), sum(Js)).sum(1)
         return combinations  # L x J
 
-    def superposition(
-            self,
-            order: torch.Tensor,  # M x J
-            combinations: torch.Tensor,  # L x J
-            sample_idx: int,
-            b0: torch.Tensor,
-            b1: torch.Tensor,
-    ):
-        # M is the number of sequences to predict, L is the number of combinations
-        b0 = b0[sample_idx, :, :]
-        b1 = b1[sample_idx, :, :]
-        K, _ = b0.shape
-        M, J = order.shape
-        L, _ = combinations.shape
-        d = self.dimensions["stimulus_to_stimulus_interval"]
-        W = self.dimensions["stimulus_window"]
-        T = (J - 1) * d + W
-
-        w = order.unsqueeze(1).unsqueeze(1).unsqueeze(-1)  # M x 1 x 1 x J x 1
-        y = combinations.unsqueeze(0).unsqueeze(2).unsqueeze(-1)  # 1 x L x 1 x J x 1
-
-        b0.unsqueeze_(0).unsqueeze_(0).unsqueeze_(-2)  # 1 x 1 x K x 1 x T
-        b1.unsqueeze_(0).unsqueeze_(0).unsqueeze_(-2)  # 1 x 1 x K x 1 x T
-
-        time = torch.arange(0, T).reshape(1, 1, 1, 1, -1)  # 1 x 1 x 1 x 1 x T
-
-        p_in = (1-y) * b0 + y * b1  # M x L x K x J x T
-        shift_n = (time - w * d).long()  # M x L x 1 x J x T
-        which_n = (shift_n >= 0) * (shift_n < W)
-        shift_n = torch.where(which_n, shift_n, W)  # when outside, we label it W
-        p_in = torch.cat([p_in, torch.zeros(1, L, K, J, 1)], 4)  # add the 0 bin for when shift_n=W
-        shift_n = shift_n.repeat(1, L, K, 1, 1)  # M x L x K x J x T
-        p_in = p_in.repeat(M, 1, 1, 1, 1)  # M x L x K x J x T
-        value = torch.gather(p_in, 4, shift_n).sum(3)  # M x L x K x T
-        return value  # M x L x K x T
-
-    def scaling_processes(
-            self,
-            order: torch.Tensor,  # M x J
-            combinations: torch.Tensor,  # L x J
-            sample_idx: int,
-    ):
-        return self.superposition(
-            order,
-            combinations,
-            sample_idx,
-            self.variables["smgp_scaling.nontarget_process"],
-            self.variables["smgp_scaling.target_signal"],
-        )
-
-    def mean_factor_processes(
-            self,
-            order: torch.Tensor,  # M x J
-            combinations: torch.Tensor,  # L x J
-            sample_idx: int,
-    ):
-        return self.superposition(
-            order,
-            combinations,
-            sample_idx,
-            self.variables["smgp_factors.nontarget_process"],
-            self.variables["smgp_factors.target_signal"],
-        )
-
-    def factor_processes(
-            self,
-            mean_factor_processes: torch.Tensor,  # M x L x K x T
-            factor_samples: int,
-    ):
-        if factor_samples <= 0:
-            return mean_factor_processes.unsqueeze(-2)
-        dims = list(mean_factor_processes.shape[:-1]) + [factor_samples]
-        # for some reason, CUDA doesn't like this shape?
-        z = torch.stack([
-            self._dist.sample(dims[1:])
-            for _ in range(dims[0])
-        ], 0)
-        # z = self._dist.sample(dims)
-        value = mean_factor_processes.unsqueeze(-2) + z
-        return value  # M x L x K x B x T
-
-    def mean(
-            self,
-            scaling_processes: torch.Tensor,  # M x L x K x T
-            factor_processes: torch.Tensor,  # M x L x K x B x T
-            sample_idx: int
-    ):
-        processes = (scaling_processes.unsqueeze(-2) * factor_processes)  # M x L x K x B x T
-        L = self.variables["loadings"][sample_idx, :, :]  # E x K
-        mean = torch.einsum("mlkbt,ek->mlbet", processes, L)  # M x L x B x E x T
-        return mean
-
-    def log_prob(
-            self,
-            mean: torch.Tensor,  # M x L x B x E x T
-            sequence: torch.Tensor,  # M x E x T,
-            sample_idx: int
-    ):
-        dist = MultivariateNormal(
-            loc=torch.zeros(sequence.shape[1]),
-            covariance_matrix=torch.diag(self.variables["observation_variance"][sample_idx, :])
-        )
-        B = mean.shape[2]
-        diff = sequence.unsqueeze(1).unsqueeze(1) - mean  # M x L x B x E x T
-        diff = diff.permute(0, 1, 2, 4, 3)  # M x L x B x T x E
-        # for some reason, CUDA is unhappy with doing this in one go
-        log_prob = torch.stack([
-            dist.log_prob(diff[:, :, :, t, :])  # M x L x B x E
-            for t in range(diff.shape[-2])
-        ], 3)  # M x L x B x T
-        log_prob = torch.logsumexp(log_prob, 2, keepdim=False)  # M x L x T
-        log_prob -= torch.log(torch.Tensor([B]))
-        return torch.logsumexp(log_prob, 2, keepdim=False)  # M x L
-
-    def _predict_idx(
-            self,
-            order: torch.Tensor,  # M x J
-            sequence: torch.Tensor,  # M x E x T,
-            factor_samples: int,
-            sample_idx: int,
-    ):
-        scaling_processes = self.scaling_processes(order, self.combinations, sample_idx)
-        mean_factor_processes = self.mean_factor_processes(order, self.combinations, sample_idx)
-        factor_processes = self.factor_processes(mean_factor_processes, factor_samples)
-        mean = self.mean(scaling_processes, factor_processes, sample_idx)
-        log_prob = self.log_prob(mean, sequence, sample_idx)
-        return log_prob  # M x L
-
     def predict(
             self,
             order: torch.Tensor,  # M x J
             sequence: torch.Tensor,  # M x E x T,
             factor_samples: int,
             character_idx: torch.Tensor | None = None,  # M
+            factor_processes_method: str = "posterior",
+            aggregation_method: str = "product",
+            return_cumulative: bool = False,
     ):
-        N = self.n_samples
-        log_probs = [
-            self._predict_idx(order, sequence, factor_samples, sample_idx)
-            for sample_idx in range(N)
-        ]
-        log_probs = torch.stack(log_probs, 2)  # M x L x N
+        # first step is always to get log-likelihood for all sequences
+        # all combinations and all posterior samples
+        llk = self.log_likelihood(
+            order=order,
+            sequence=sequence,
+            factor_samples=factor_samples,
+            factor_processes_method=factor_processes_method,
+        )
         if character_idx is None:
-            log_probs -= log_probs.logsumexp(1, keepdim=True)  # center == map to probabilities
-            log_probs = torch.logsumexp(log_probs, 2, keepdim=False)  # M x L
-            log_probs -= torch.log(torch.Tensor([N]))  # take MC average
-            pred = torch.argmax(log_probs, 1)
-            pred_one_hot = self.combinations[pred, :]
-            return log_probs, pred_one_hot
+            llk_long = llk.unsqueeze(1)  # M x 1 x L x N
         else:
             character_idx = character_idx.flatten()
             chars = character_idx.unique()
             max_rep = max([(character_idx == char).int().sum().item() for char in chars])
-            wide_log_probs = torch.zeros((len(chars), max_rep, log_probs.shape[1], log_probs.shape[2]))
+            llk_long = torch.zeros((len(chars), max_rep, llk.shape[1], llk.shape[2]))
             for i, char in enumerate(chars):
                 idx = character_idx == char
-                wide_log_probs[i, :sum(idx), ...] = log_probs[idx, ...]
-            # now wide_log_probs should be nchar x nrep x L x N
-            # first option: aggregate over samples later
-            wide_log_probs_cumsum = torch.cumsum(wide_log_probs, 1)
-            wide_log_probs_cumsum = torch.logsumexp(wide_log_probs_cumsum, -1)
-            wide_log_probs_cumsum -= wide_log_probs_cumsum.logsumexp(-1, keepdim=True)
+                llk_long[i, :sum(idx), ...] = llk[idx, ...]
+            # should now be nc x nr x L x N
+        # Aggregation switch
+        if aggregation_method == "product":
+            # get log prob for each sequence
+            log_prob = torch.logsumexp(llk_long, dim=3) - math.log(self.n_samples)
+            # get log prob for each character (this is the product)
+            log_prob = log_prob.cumsum(1)  # nc x nr x L
+            # map to probabilities
+            log_prob = log_prob - torch.logsumexp(log_prob, dim=2, keepdim=True)
+        elif aggregation_method == "integral":
+            # sum over repetitions
+            log_prob = llk_long.cumsum(1)  # nc x nr x L x N
+            # get log prob for each character
+            log_prob = torch.logsumexp(log_prob, dim=3) - math.log(self.n_samples)
+            # map to probabilities
+            log_prob = log_prob - torch.logsumexp(log_prob, dim=2, keepdim=True)
+        else:
+            raise ValueError(f"Unknown aggregation method {aggregation_method}")
 
-            # second option: aggregate probabilities (this looks a bit better? overfitting?)
-            wide_log_probs_ = torch.logsumexp(wide_log_probs, -1) - torch.log(torch.Tensor([N]))
-            wide_log_probs_cumsum = torch.cumsum(wide_log_probs_, 1)
-            wide_log_probs_cumsum -= wide_log_probs_cumsum.logsumexp(-1, keepdim=True)
+        # get predicted class
+        wide_pred = log_prob.argmax(2)
+        wide_pred_one_hot = self.combinations[wide_pred, :]
+        if character_idx is None:
+            return log_prob[:, 0, :], wide_pred_one_hot[:, 0, :]
+        else:
+            if return_cumulative:
+                return log_prob, wide_pred_one_hot, chars
+            else:
+                return log_prob[:, -1, :], wide_pred_one_hot[:, -1, :], chars
 
-            wide_pred = wide_log_probs_cumsum.argmax(2)
-            wide_pred_one_hot = self.combinations[wide_pred, :]
-            return chars, wide_log_probs, wide_pred_one_hot
+    def log_likelihood(
+            self,
+            order: torch.Tensor,  # M x J
+            sequence: torch.Tensor,  # M x E x T,
+            factor_samples: int,
+            factor_processes_method: str = "posterior",
+    ):
+        N = self.n_samples
+        M, E, T = sequence.shape
+        L = self.combinations.shape[0]
+        B = factor_samples
+        target_repeated = self.combinations.repeat(M, 1)  # (ML) x J
+        sequence_repeated = sequence.repeat_interleave(L, 0)  # (ML) x E x T
+        order_repeated = order.repeat_interleave(L, 0)  # (ML) x J
+        # NB the ordering is
+        # seq0 ... seq0, seq1 ... seq1, seq2 ... seq2
+        # comb0, comb1, comb2, comb0, comb1, comb2, comb0, comb1, comb2
+
+        bffmodel = BFFModel(
+            stimulus_order=order_repeated,
+            target_stimulus=target_repeated,
+            sequences=sequence_repeated,
+            **self.prior,
+            **self.dimensions,
+        )
+
+        # run through all posterior samples
+        llk = torch.zeros(M, L, N)
+        for sample_idx in range(N):
+            print(f"Sample {sample_idx+1}/{N}")
+            # get global variables
+            variables = {
+                "loadings": self.variables["loadings"][sample_idx, :, :],
+                "observation_variance": self.variables["observation_variance"][sample_idx, :],
+                "smgp_factors": {
+                    "nontarget_process": self.variables["smgp_factors.nontarget_process"][sample_idx, :, :],
+                    "target_process": self.variables["smgp_factors.target_process"][sample_idx, :, :],
+                    "mixing_process": self.variables["smgp_factors.target_process"][sample_idx, :, :],
+                },
+                "smgp_scaling": {
+                    "nontarget_process": self.variables["smgp_scaling.nontarget_process"][sample_idx, :, :],
+                    "target_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :],
+                    "mixing_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :],
+                }
+            }
+            bffmodel.set(**variables)
+            bffmodel.generate_local_variables()
+            # put some decent starting values
+            # bffmodel.variables["mean_factor_processes"].generate()
+            if factor_processes_method == "posterior":
+                llk_idx = torch.zeros(M*L, B)
+                for b in range(B):
+                    bffmodel.variables["factor_processes"].sample()
+                    llk_idx[:, b] = bffmodel.variables["observations"].log_density_per_sequence
+                llk_idx = math.log(B) - torch.logsumexp(-llk_idx, 1)
+            elif factor_processes_method == "prior":
+                llk_idx = torch.zeros(M*L, B)
+                for b in range(B):
+                    bffmodel.variables["factor_processes"].generate()
+                    llk_idx[:, b] = bffmodel.variables["observations"].log_density_per_sequence
+                llk_idx = torch.logsumexp(llk_idx, 1) - math.log(B)
+            elif factor_processes_method == "prior_mean":
+                bffmodel.variables["factor_processes"].data = \
+                    bffmodel.variables["mean_factor_processes"].data
+                llk_idx = bffmodel.variables["observations"].log_density_per_sequence
+            elif factor_processes_method == "posterior_mean":
+                bffmodel.variables["factor_processes"].data = \
+                    bffmodel.variables["factor_processes"].posterior_mean
+                llk_idx = bffmodel.variables["observations"].log_density_per_sequence
+            elif factor_processes_method == "analytical":
+                llk_idx = torch.zeros(M*L)
+                x = bffmodel.variables["observations"].data  # (ML) x E x T
+                xi = bffmodel.variables["loading_processes"].data # (ML) x K x T
+                zbar = bffmodel.variables["mean_factor_processes"].data  # (ML) x K x T
+                Sigma = bffmodel.variables["observation_variance"].data  # E
+                Theta = bffmodel.variables["loadings"].data  # E x K
+                Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
+                mean = torch.einsum("mkt, ek -> met", xi*zbar, Theta)  # (ML) x E x T
+                for ml in range(M*L):
+                    mean_ml = mean[ml, :, :]  # E x T
+                    mean_ml = mean_ml.flatten()  # blocks are per channel [T, ..., T]
+                    cov = torch.zeros(E*T, E*T)
+                    m1 = torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
+                    cov = torch.einsum(
+                        "ek, fk, kt, ts, ks-> efts",
+                        Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
+                    )
+                    cov = cov.permute(0, 2, 1, 3).flatten(2, 3).flatten(0, 1)
+                    cov = cov + torch.kron(torch.diag(Sigma), torch.eye(T))
+                    dist = torch.distributions.MultivariateNormal(mean_ml, cov)
+                    llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten())
+            else:
+                raise ValueError(f"Unknown factor_processes_method {factor_processes_method}")
+            llk[:, :, sample_idx] = llk_idx.reshape(M, L)
+        return llk  # M x L x N
 
     def one_hot_to_combination_id(self, one_hot: torch.Tensor):
         # one_hot should be ... x n_combinations

@@ -35,6 +35,25 @@ class NoisyProcesses(Variable):
 		value = self.mean.data + z
 		self._set_value(value)
 
+	@property
+	def posterior_mean(self):
+		N, K, T = self.shape
+		value = self.data
+		for k in range(K):
+			m0 = self.mean.data[:, k, :]
+			p0 = self.kernel.inv
+			mtp0 = m0 @ p0
+
+			mtp1, p1 = self._parameters_from_child(k, value)
+
+			mtp = mtp0 + mtp1
+			p = p0 + p1
+			c = torch.linalg.inv(p)
+			m = torch.einsum("ntu, nt -> nu", c, mtp)
+			value[:, k, :] = m
+		return value
+
+
 	def sample(self, store=False):
 		N, K, T = self.shape
 		value = self.data
@@ -52,6 +71,8 @@ class NoisyProcesses(Variable):
 
 			# sample
 			for i in range(N):
+				if torch.isnan(m[i, :]).any():
+					raise RuntimeError("NaN in mean")
 				dist = MultivariateNormal(loc=m[i, :], covariance_matrix=c[i, :, :])
 				value[i, k, :] = dist.sample()
 

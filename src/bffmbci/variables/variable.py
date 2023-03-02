@@ -32,6 +32,16 @@ class Variable:
 		self.children = dict()
 		self.true_value = None
 
+	def set_store(self, store: bool):
+		self._store = store
+		self.clear_history()  # to create the tensor
+
+	def filter(self, ids: torch.Tensor, dim=0):
+		newdim = list(self._dim)
+		newdim[dim] = ids.shape[0]
+		self._dim = torch.Size(newdim)
+		self._value = self._value.index_select(dim, ids)
+
 	@property
 	def data(self):
 		return self._value

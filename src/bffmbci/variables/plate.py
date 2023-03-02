@@ -20,6 +20,11 @@ class Plate:
 			self.variables[k] = v
 		self.true_values = None
 
+	def filter(self, ids: torch.Tensor, dim: int = 0):
+		r"""Filter out ids from all variables in the plate."""
+		for v in self.values():
+			v.filter(ids, dim=dim)
+
 	def __getitem__(self, item):
 		return self.variables[item]
 
