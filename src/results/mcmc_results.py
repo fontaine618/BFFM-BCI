@@ -44,6 +44,21 @@ class MCMCResults:
         "smgp_scaling.target_process",
     ]
 
+    # TODO: finish this
+    """List of all metrics that can be computed from the MCMC results.
+    
+    Format: dict[variable: dict[metric: function]
+    """
+    _metric = {
+        "loadings": {
+            "columnwise_2norm": lambda x, y: torch.norm(x - y, dim=0),
+            "columnwise_cosine_similarity": lambda x, y: torch.cosine_similarity(x, y, dim=1),
+        },
+        "loadings.inner_product": {
+            "frobenius": lambda x, y: torch.norm(x - y, "fro")
+        }
+    }
+
     def __init__(
         self,
         prior: dict[str: Any],
@@ -65,7 +80,6 @@ class MCMCResults:
         self.drop_warmup(warmup)
         self.thin_chains(thin)
         self._validate()
-        _add_transformed_variables(self.chains)
         print(f"{suffix}Created {repr(self)}.")
         print(padding + f"- thinning: {self.thin}")
         print(padding + f"- warmup: {self.warmup}")
@@ -176,26 +190,91 @@ class MCMCResults:
         for k, v in self.chains.items():
             self.chains[k] = v[:, ::thin, ...]
 
+    def add_transformed_variables(self):
+        _add_transformed_variables(self.chains)
+
     def align(self):
-        #TODO
-        pass
+        for chain in range(self.n_chains):
+            self.align_chain(chain)
+        self.align_chains()
+
+    def align_chain(self, chain: int):
+        # align on the last sample
+        loadings = self.chains["loadings"][chain, -1, ...]  # E x K
+        ips = torch.einsum(
+            "nek,ek->nk",
+            self.chains["loadings"][chain, ...],
+            loadings
+        )
+        signflips = torch.sign(ips)  # N x K
+        self.chains["loadings"][chain, ...] *= signflips.unsqueeze(1)
+        self.chains["smgp_factors.nontarget_process"][chain, ...] *= signflips.unsqueeze(-1)
+        self.chains["smgp_factors.target_process"][chain, ...] *= signflips.unsqueeze(-1)
+        self.chains["smgp_factors.mixing_process"][chain, ...] *= signflips.unsqueeze(-1)
+
+    def align_chains(self):
+        # choose last entry of first chain as reference
+        loadings = self.chains["loadings"][0, -1, ...]  # E x K
+        # first look at the ordering
+        ips = torch.einsum(
+            "bek, ej->bkj",
+            self.chains["loadings"][:, -1, ...],
+            loadings
+        ).abs()
+        norm0 = torch.norm(loadings, dim=0)
+        norm1 = torch.norm(self.chains["loadings"][:, -1, ...], dim=1)
+        ips /= norm0.unsqueeze(0).unsqueeze(0) * norm1.unsqueeze(-1)
+        N, K, _ = ips.shape
+        orders = torch.zeros(N, K) - 1
+        best_order = ips.argsort(-1, descending=True)
+        # we would like to use best_order[:, :, 0], but we could have repetitions
+        for n in range(N):
+            chosen = []
+            for k in range(K):
+                j = best_order[n, k, 0]
+                ith = 0
+                while j in chosen:
+                    ith += 1
+                    j = best_order[n, k, ith]
+                chosen.append(j)
+                orders[n, j] = k
+        for n in range(N):
+            self.chains["loadings"][n, ...] = self.chains["loadings"][n, :, :, orders[n, :].long()]
+            self.chains["smgp_factors.nontarget_process"][n, ...] = \
+                self.chains["smgp_factors.nontarget_process"][n, :, orders[n, :].long(), :]
+            self.chains["smgp_factors.target_process"][n, ...] = \
+                self.chains["smgp_factors.target_process"][n, :, orders[n, :].long(), :]
+            self.chains["smgp_factors.mixing_process"][n, ...] = \
+                self.chains["smgp_factors.mixing_process"][n, :, orders[n, :].long(), :]
+        # second we look at signflips
+        ips = torch.einsum(
+            "bek, ek->bk",
+            self.chains["loadings"][:, -1, ...],
+            loadings
+        )
+        signflips = torch.sign(ips)  # B x K
+        self.chains["loadings"] *= signflips.unsqueeze(1).unsqueeze(-2)
+        self.chains["smgp_factors.nontarget_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
+        self.chains["smgp_factors.target_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
+        self.chains["smgp_factors.mixing_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
+
 
     @property
-    def n_chains(self):
+    def n_chains(self) -> int:
         return next(iter(self.chains.values())).shape[0]
 
     @property
-    def n_samples(self):
+    def n_samples(self) -> int:
         return next(iter(self.chains.values())).shape[1]
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.n_chains} chains, {self.n_samples} samples)"
         pass
 
-    def to_arviz(self):
+    def to_arviz(self) -> az.InferenceData:
         return az.from_dict(posterior={k: v.cpu() for k, v in self.chains.items()})
 
-    def to_predict(self, thin: int | None = None, n_samples: int | None = 1000):
+    def to_predict(self, thin: int | None = None, n_samples: int | None = 1000) -> BFFMPredict:
         """Create a Predict object from the MCMCResults."""
         if thin is None:
             thin = int(np.ceil(self.n_samples * self.n_chains / n_samples))
@@ -207,32 +286,26 @@ class MCMCResults:
 
 
 def _add_transformed_variables(chains):
-    if "loadings.inner_products" not in chains and \
-            "loadings" in chains:
+    if "loadings" in chains:
         L = chains["loadings"]  # (..., E, K)
         chains["loadings.inner_products"] = L @ L.transpose(-1, -2) # (..., E, E)
-    if "loadings.rank_one" not in chains and \
-            "loadings" in chains:
+    if "loadings" in chains:
         L = chains["loadings"].transpose(-1, -2)  # (..., K, E)
         chains["loadings.rank_one"] = L.unsqueeze(-1) @ L.unsqueeze(-2)  # (..., K, E, E)
-    if "loadings.projection" not in chains and \
-            "loadings" in chains:
+    if "loadings" in chains:
         L = chains["loadings"]  # (..., E, K)
         LtL = L.transpose(-1, -2) @ L  # (..., K, K)
         LtLinv = torch.linalg.inv(LtL)  # (..., K, K)
         chains["loadings.projection"] = L @ LtLinv @ L.transpose(-1, -2)  # (..., E, E)
-    if "loadings.norm_one" not in chains and \
-            "loadings" in chains:
+    if "loadings" in chains:
         L = chains["loadings"]
         Lnorm = torch.linalg.norm(L, dim=-2, keepdim=True)
         chains["loadings.norm_one"] = L / Lnorm
-    if "loadings.times_shrinkage" not in chains\
-            and "loadings" in chains and "shrinkage_factor" in chains:
+    if "loadings" in chains and "shrinkage_factor" in chains:
         L = chains["loadings"]
         s = chains["shrinkage_factor"].unsqueeze(-2)
         chains["loadings.times_shrinkage"] = L / s.sqrt()
-    if "smgp_factors.target_signal" not in chains and \
-            "smgp_factors.nontarget_process" in chains and \
+    if "smgp_factors.nontarget_process" in chains and \
             "smgp_factors.target_process" in chains and \
             "smgp_factors.mixing_process" in chains:
         chains["smgp_factors.target_signal"] = \
@@ -240,15 +313,13 @@ def _add_transformed_variables(chains):
             chains["smgp_factors.nontarget_process"] + \
             chains["smgp_factors.mixing_process"] * \
             chains["smgp_factors.target_process"]
-    if "smgp_factors.difference_process" not in chains and \
-            "smgp_factors.nontarget_process" in chains and \
+    if "smgp_factors.nontarget_process" in chains and \
             "smgp_factors.target_process" in chains and \
             "smgp_factors.mixing_process" in chains:
         chains["smgp_factors.difference_process"] = \
             chains["smgp_factors.target_signal"] - \
             chains["smgp_factors.nontarget_process"]
-    if "smgp_scaling.target_signal" not in chains and \
-            "smgp_scaling.nontarget_process" in chains and \
+    if "smgp_scaling.nontarget_process" in chains and \
             "smgp_scaling.target_process" in chains and \
             "smgp_scaling.mixing_process" in chains:
         chains["smgp_scaling.target_signal"] = \
@@ -256,8 +327,7 @@ def _add_transformed_variables(chains):
             chains["smgp_scaling.nontarget_process"] + \
             chains["smgp_scaling.mixing_process"] * \
             chains["smgp_scaling.target_process"]
-    if "smgp_scaling.difference_process" not in chains and \
-            "smgp_scaling.nontarget_process" in chains and \
+    if "smgp_scaling.nontarget_process" in chains and \
             "smgp_scaling.target_process" in chains and \
             "smgp_scaling.mixing_process" in chains:
         chains["smgp_scaling.difference_process"] = \

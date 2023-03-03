@@ -16,12 +16,10 @@ To do
 [ ] Check sign flip & ordering
 [ ] Can I improve TG sampling?
 [ ] Understand why I am missing 1 in test4/old/chain1/loadings
-[ ] Implement analytical marginalization & MAP
-[ ] Experiment with number of training repetitions
+[x] Implement analytical marginalization & MAP
+[x] Experiment with number of training repetitions
 [ ] Chain alignments
 [ ] Prediction metrics
-[ ]
-[ ]
 
 
 Profiling
