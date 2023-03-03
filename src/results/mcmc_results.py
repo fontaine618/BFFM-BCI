@@ -210,7 +210,7 @@ class MCMCResults:
         self.chains["loadings"][chain, ...] *= signflips.unsqueeze(1)
         self.chains["smgp_factors.nontarget_process"][chain, ...] *= signflips.unsqueeze(-1)
         self.chains["smgp_factors.target_process"][chain, ...] *= signflips.unsqueeze(-1)
-        self.chains["smgp_factors.mixing_process"][chain, ...] *= signflips.unsqueeze(-1)
+        # self.chains["smgp_factors.mixing_process"][chain, ...] *= signflips.unsqueeze(-1)
 
     def align_chains(self):
         # choose last entry of first chain as reference
@@ -239,6 +239,7 @@ class MCMCResults:
                 chosen.append(j)
                 orders[n, j] = k
         for n in range(N):
+            # TODO shrinkage factor?
             self.chains["loadings"][n, ...] = self.chains["loadings"][n, :, :, orders[n, :].long()]
             self.chains["smgp_factors.nontarget_process"][n, ...] = \
                 self.chains["smgp_factors.nontarget_process"][n, :, orders[n, :].long(), :]
@@ -246,6 +247,12 @@ class MCMCResults:
                 self.chains["smgp_factors.target_process"][n, :, orders[n, :].long(), :]
             self.chains["smgp_factors.mixing_process"][n, ...] = \
                 self.chains["smgp_factors.mixing_process"][n, :, orders[n, :].long(), :]
+            self.chains["smgp_scaling.nontarget_process"][n, ...] = \
+                self.chains["smgp_scaling.nontarget_process"][n, :, orders[n, :].long(), :]
+            self.chains["smgp_scaling.target_process"][n, ...] = \
+                self.chains["smgp_scaling.target_process"][n, :, orders[n, :].long(), :]
+            self.chains["smgp_scaling.mixing_process"][n, ...] = \
+                self.chains["smgp_scaling.mixing_process"][n, :, orders[n, :].long(), :]
         # second we look at signflips
         ips = torch.einsum(
             "bek, ek->bk",
@@ -256,7 +263,7 @@ class MCMCResults:
         self.chains["loadings"] *= signflips.unsqueeze(1).unsqueeze(-2)
         self.chains["smgp_factors.nontarget_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
         self.chains["smgp_factors.target_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
-        self.chains["smgp_factors.mixing_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
+        # self.chains["smgp_factors.mixing_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
 
 
     @property
@@ -304,7 +311,8 @@ def _add_transformed_variables(chains):
     if "loadings" in chains and "shrinkage_factor" in chains:
         L = chains["loadings"]
         s = chains["shrinkage_factor"].unsqueeze(-2)
-        chains["loadings.times_shrinkage"] = L / s.sqrt()
+        chains["loadings.times_shrinkage"] = L * s.sqrt()
+    # Factor process global: target signal and difference process
     if "smgp_factors.nontarget_process" in chains and \
             "smgp_factors.target_process" in chains and \
             "smgp_factors.mixing_process" in chains:
@@ -319,6 +327,7 @@ def _add_transformed_variables(chains):
         chains["smgp_factors.difference_process"] = \
             chains["smgp_factors.target_signal"] - \
             chains["smgp_factors.nontarget_process"]
+    # Scaling process global: target signal and difference process
     if "smgp_scaling.nontarget_process" in chains and \
             "smgp_scaling.target_process" in chains and \
             "smgp_scaling.mixing_process" in chains:
@@ -333,3 +342,24 @@ def _add_transformed_variables(chains):
         chains["smgp_scaling.difference_process"] = \
             chains["smgp_scaling.target_signal"] - \
             chains["smgp_scaling.nontarget_process"]
+    # Scaling process global: sacled by shrinkage
+    if "smgp_scaling.nontarget_process" in chains and \
+            "shrinkage_factor" in chains:
+        s = chains["shrinkage_factor"].unsqueeze(-1)
+        chains["smgp_scaling.nontarget_process_times_shrinkage"] = \
+            chains["smgp_scaling.nontarget_process"] / s.sqrt()
+    if "smgp_scaling.target_process" in chains and \
+            "shrinkage_factor" in chains:
+        s = chains["shrinkage_factor"].unsqueeze(-1)
+        chains["smgp_scaling.target_process_times_shrinkage"] = \
+            chains["smgp_scaling.target_process"] / s.sqrt()
+    if "smgp_scaling.target_signal" in chains and \
+            "shrinkage_factor" in chains:
+        s = chains["shrinkage_factor"].unsqueeze(-1)
+        chains["smgp_scaling.target_signal_times_shrinkage"] = \
+            chains["smgp_scaling.target_signal"] / s.sqrt()
+    if "smgp_scaling.difference_process" in chains and \
+            "shrinkage_factor" in chains:
+        s = chains["shrinkage_factor"].unsqueeze(-1)
+        chains["smgp_scaling.difference_process_times_shrinkage"] = \
+            chains["smgp_scaling.difference_process"] / s.sqrt()

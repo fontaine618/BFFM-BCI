@@ -49,7 +49,8 @@ class Loadings(Variable):
 		tau = self.shrinkage_factor.data
 		x = self.observations.data
 		for e in range(self.shape[0]):
-			prec = outer / sig2[e] + torch.diag(phi[e, :] / tau)
+			# prec = outer / sig2[e] + torch.diag(phi[e, :] / tau)
+			prec = outer / sig2[e] + torch.diag(tau / phi[e, :])
 			prec_times_mean = torch.einsum("nt, nkt -> k", x[:, e, :], eta) / sig2[e]
 			cov = torch.inverse(prec)
 			mean = prec_times_mean @ cov
