@@ -1,5 +1,4 @@
 import torch
-from .variable import Variable
 
 
 class Plate:

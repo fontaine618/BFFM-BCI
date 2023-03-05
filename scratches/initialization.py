@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import torch
 import pandas as pd
 import numpy as np
-import scipy.linalg
 from src.bffmbci.bffm import BFFModel
 from src.bffmbci.bffm_init import bffm_initializer
 
@@ -40,8 +39,6 @@ stimulus_window = w
 stimulus_to_stimulus_interval = d
 latent_dim = K
 
-from src.bffmbci.utils import Kernel
-from src.bffmbci.variables import SequenceData, SMGP, Superposition
 from src.initialization.wfa import WFA
 
 

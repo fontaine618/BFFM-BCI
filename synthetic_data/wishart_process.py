@@ -15,7 +15,7 @@ def wishart_process_dictionary(
 	:return:
 	"""
 	N, K, T = latent_process.shape
-	E = loadings.shape[0]
+	loadings.shape[0]
 	out = base_covariance.unsqueeze(0).repeat(N, 1, 1).unsqueeze(3).repeat(1, 1, 1, T)
 	for n in range(N):
 		for k in range(K):

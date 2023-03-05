@@ -13,17 +13,24 @@ To do
 [x] Implement loading into arviz
 [x] Check new truncated Gaussian
 [x] Implement predictions
-[ ] Check sign flip & ordering
-[ ] Can I improve TG sampling?
-[ ] Understand why I am missing 1 in test4/old/chain1/loadings
+[x] Check sign flip & ordering
 [x] Implement analytical marginalization & MAP
 [x] Experiment with number of training repetitions
-[ ] Chain alignments
+[x] Chain alignments
+[x] Align true values to current chain (or vice versa)
+[x] Implement a function to output true values from generated data
+[ ] Finish estimation metrics
 [ ] Prediction metrics
+[ ] Test5 results: bad for now, need to debug
+
+Backlog
+=======
+[ ] Can I improve TG sampling?
+[ ] Understand why I am missing 1 in test4/old/chain1/loadings
 
 Notes
 =====
-loagins.norm_one and .times_shrikage much more identifiable that loadings
+loagins.norm_one and .times_shrinkage much more identifiable that loadings
 
 
 Profiling

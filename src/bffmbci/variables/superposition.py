@@ -2,7 +2,6 @@ import torch
 from .variable import Variable
 from .sequence_data import SequenceData
 from .smpg import SMGP
-from torch.autograd.functional import jacobian
 
 
 class Superposition(Variable):
@@ -60,7 +59,7 @@ class Superposition(Variable):
 		target_process = target_process.unsqueeze(-1).unsqueeze(0)
 		mixing_process = mixing_process.unsqueeze(-1).unsqueeze(0)
 		yy = y.unsqueeze(1).unsqueeze(1)
-		p_in = ((1 - yy * mixing_process) * nontarget_process + \
+		p_in = ((1 - yy * mixing_process) * nontarget_process +
 		        yy * mixing_process * target_process).movedim(3, 2)
 		shift_n = (time - w.unsqueeze(-1) * d).long() \
 			.unsqueeze(1).expand(p_in.shape[0], p_in.shape[1], -1, -1)

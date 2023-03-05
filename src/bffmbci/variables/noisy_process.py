@@ -94,7 +94,6 @@ class NoisyProcesses(Variable):
 		lk = self.observations.loadings.data[:, k] # E
 		lpk = self.observations.loading_processes.data[:, k, :] # N x T
 		N, K, T = self.observations.loading_processes.shape
-		E = lk.shape[0]
 
 		jac = torch.einsum(
 			"e, nt -> net",

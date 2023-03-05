@@ -1,6 +1,4 @@
 import torch
-import scipy.stats
-import numpy as np
 import math
 
 ROOT_TWO_PI = math.sqrt(2 * math.pi)

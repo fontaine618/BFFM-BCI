@@ -3,10 +3,8 @@
 # singularity of precision matrices
 
 import torch
-import pandas as pd
 from src.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
 plt.style.use("seaborn-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
@@ -58,10 +56,8 @@ fig.savefig(f"./code/figures/chains_smgp/{var}_k{k}_dim{latent_dim}.pdf")
 # singularity of precision matrices
 
 import torch
-import pandas as pd
 from src.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
 plt.style.use("seaborn-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
@@ -106,7 +102,7 @@ plt.imshow(p1.log().cpu().detach())
 plt.colorbar()
 plt.title("Precision update matrix (log)")
 plt.tight_layout()
-plt.savefig(f"./code/figures/matrices/precision_update_log.pdf")
+plt.savefig("./code/figures/matrices/precision_update_log.pdf")
 
 torch.linalg.eigh(prec)
 

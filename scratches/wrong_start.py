@@ -94,7 +94,7 @@ for exname, ex in orders.items():
 			for i in range(n_iter):
 				try:
 					model.sample()
-				except Exception as e:
+				except Exception:
 					print("found error, skipped")
 				lkki = model.variables["observations"].log_density
 				print(i, lkki)

@@ -9,7 +9,7 @@ n_iter = 100
 latent_dim = 3
 k = 2
 xs = range(0, n_iter+1)
-dir = f"./src/figures/nonnegative/"
+dir = "./src/figures/nonnegative/"
 
 order = None
 

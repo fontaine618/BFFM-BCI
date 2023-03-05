@@ -4,7 +4,6 @@ import pickle
 import numpy as np
 import scipy.linalg
 import torch.nn.functional as F
-import copy
 
 from .utils import Kernel
 from .variables import SequenceData, SMGP, Superposition, IndependentSMGP, NonnegativeSMGP

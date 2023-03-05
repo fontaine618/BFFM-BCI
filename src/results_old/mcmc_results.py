@@ -1,8 +1,7 @@
-from typing import Tuple, Union, Any
+from typing import Union, Any
 
 import torch
 import pickle
-import arviz as az
 
 
 class MCMCResults:

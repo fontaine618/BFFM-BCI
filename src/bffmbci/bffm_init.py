@@ -1,8 +1,4 @@
-from typing import Tuple, Union
 import torch
-import numpy as np
-import scipy.linalg
-import torch.nn.functional as F
 
 from .utils import Kernel
 from .variables import SequenceData, SMGP, Superposition

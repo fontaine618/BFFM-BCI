@@ -2,7 +2,6 @@ import torch
 import pandas as pd
 from src.bffmbci.bffm import BFFModel
 from src.results_old.mcmc_results import MCMCResults
-from src.bffmbci.utils.truncated_gaussian import COUNTS
 import matplotlib.pyplot as plt
 
 plt.style.use("seaborn-v0_8-whitegrid")

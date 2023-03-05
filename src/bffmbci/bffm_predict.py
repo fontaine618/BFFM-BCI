@@ -133,6 +133,7 @@ class BFFMPredict:
         # NB the ordering is
         # seq0 ... seq0, seq1 ... seq1, seq2 ... seq2
         # comb0, comb1, comb2, comb0, comb1, comb2, comb0, comb1, comb2
+        self.dimensions["n_sequences"] = M
 
         bffmodel = BFFModel(
             stimulus_order=order_repeated,
@@ -194,11 +195,13 @@ class BFFMPredict:
                 Theta = bffmodel.variables["loadings"].data  # E x K
                 Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
                 mean = torch.einsum("mkt, ek -> met", xi*zbar, Theta)  # (ML) x E x T
+                # TODO need to vectorize this, way too slow currently
                 for ml in range(M*L):
+                    if ml % 100 == 0:
+                        print(f"Sample {sample_idx+1}/{N}, sequence {ml+1}/{M*L}")
                     mean_ml = mean[ml, :, :]  # E x T
                     mean_ml = mean_ml.flatten()  # blocks are per channel [T, ..., T]
-                    cov = torch.zeros(E*T, E*T)
-                    m1 = torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
+                    torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
                     cov = torch.einsum(
                         "ek, fk, kt, ts, ks-> efts",
                         Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
