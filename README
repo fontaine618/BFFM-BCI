@@ -109,4 +109,4 @@ Commands
 ssh simon@192.168.0.208
 scp <files> simon@simfont:/home/simon/Documents/BCI/experiments/test3/chains
 # get from GL
-scp -r simfont@greatlakes-xfer.arc-ts.umich.edu:./Documents/BCI/experiments/test5/chains ./experiments/test5/chains/
+scp -r simfont@greatlakes-xfer.arc-ts.umich.edu:./Documents/BCI/experiments/test5/results/posterior_mean .
