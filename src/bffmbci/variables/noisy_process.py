@@ -47,12 +47,11 @@ class NoisyProcesses(Variable):
 			mtp1, p1 = self._parameters_from_child(k, value)
 
 			mtp = mtp0 + mtp1
-			p = p0 + p1
+			p = p0.unsqueeze(0) + p1
 			c = torch.linalg.inv(p)
 			m = torch.einsum("ntu, nt -> nu", c, mtp)
 			value[:, k, :] = m
 		return value
-
 
 	def sample(self, store=False):
 		N, K, T = self.shape

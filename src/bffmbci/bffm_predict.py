@@ -164,8 +164,7 @@ class BFFMPredict:
             }
             bffmodel.set(**variables)
             bffmodel.generate_local_variables()
-            # put some decent starting values
-            # bffmodel.variables["mean_factor_processes"].generate()
+
             if factor_processes_method == "posterior":
                 llk_idx = torch.zeros(M*L, B)
                 for b in range(B):
