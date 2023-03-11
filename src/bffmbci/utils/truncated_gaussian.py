@@ -104,7 +104,10 @@ class TruncatedMultivariateGaussian(TruncatedStandardMultivariateGaussian):
 		).reshape(-1)
 
 		value = super().sample(value)
-		return self._mean + self._cholesky @ value
+		out = self._mean + self._cholesky @ value
+		# if (out < self._lower).any() or (out > self._upper).any():
+		# 	raise RuntimeError("TG sampling outside limits")
+		return out
 
 
 def _truncated_standard_normal_rv_icdf(a: torch.Tensor, b: torch.Tensor):
