@@ -107,6 +107,7 @@ class TruncatedMultivariateGaussian(TruncatedStandardMultivariateGaussian):
 		out = self._mean + self._cholesky @ value
 		# if (out < self._lower).any() or (out > self._upper).any():
 		# 	raise RuntimeError("TG sampling outside limits")
+		out.clamp_(min=self._lower, max=self._upper)
 		return out
 
 
