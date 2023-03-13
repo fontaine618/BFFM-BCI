@@ -22,6 +22,10 @@ To do
 [ ] Finish estimation metrics
 [ ] Prediction metrics
 [ ] Test5 results: bad for now, need to debug
+[ ] Fix TG sampling clamping: currenlty using wrong bounds
+[ ] Entropy
+[ ] ESS
+[ ] Trace plot
 
 Backlog
 =======

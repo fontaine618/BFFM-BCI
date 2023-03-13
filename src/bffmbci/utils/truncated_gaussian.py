@@ -1,5 +1,6 @@
 import torch
 import math
+import warnings
 
 ROOT_TWO_PI = math.sqrt(2 * math.pi)
 ROOT_TWO_OVER_PI = math.sqrt(2 / math.pi)
@@ -79,6 +80,8 @@ class TruncatedMultivariateGaussian(TruncatedStandardMultivariateGaussian):
 		super().__init__(rotation=rotation_, lower=lower_, upper=upper_)
 		self._mean = mean
 		self._cholesky = cholesky
+		self._original_lower = lower
+		self._original_upper = upper
 		# self._cholesky_inverse = torch.linalg.inv(cholesky)
 
 	def _check_args(self, cholesky, covariance, lower, rotation, upper):
@@ -105,9 +108,9 @@ class TruncatedMultivariateGaussian(TruncatedStandardMultivariateGaussian):
 
 		value = super().sample(value)
 		out = self._mean + self._cholesky @ value
-		# if (out < self._lower).any() or (out > self._upper).any():
-		# 	raise RuntimeError("TG sampling outside limits")
-		out.clamp_(min=self._lower, max=self._upper)
+		if (out < self._original_lower).any() or (out > self._original_upper).any():
+			warnings.warn("TG sampling outside limits")
+		out.clamp_(min=self._original_lower, max=self._original_upper)
 		return out
 
 
