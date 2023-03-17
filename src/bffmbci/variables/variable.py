@@ -62,10 +62,13 @@ class Variable:
 		which = torch.arange(start, end, thin)
 		return self._history.index_select(0, which)
 
-	def _set_value(self, value, store=True):
+	def _set_value(self, value: torch.Tensor, store: bool = True):
 		if value.shape != self._dim:
-			raise ValueError(f"Trying to set a Variable value to an incorrect size:\n"
+			raise ValueError(f"Trying to set a Variable value to an incorrect size:"
 			                 f"got {tuple(value.shape)}, expected: {tuple(self._dim)}")
+		if value.isnan().any():
+			warnings.warn("Trying to set a Variable value to NaN. Copying last value instead.")
+			value = self._value
 		self._value = value
 		self.store_new_value(store)
 

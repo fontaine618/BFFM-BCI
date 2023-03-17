@@ -308,14 +308,17 @@ class BFFModel:
 			random_order = torch.randperm(len(sampling_order)).tolist()
 			sampling_order = [sampling_order[i] for i in random_order]
 		for var in sampling_order:
+			if "." in var:
+				v1, v2 = var.split(".")
+				obj = self.variables[v1][v2]
+			else:
+				obj = self.variables[var]
 			try:
-				if "." in var:
-					v1, v2 = var.split(".")
-					self.variables[v1][v2].sample()
-				else:
-					self.variables[var].sample()
+				obj.sample()
 			except Exception as e:
-				print(f"Error sampling {var}: {e}")
+				print(f"Error sampling {var}: {e}.")
+				# we need to append to the history, otherwise the samples will be misaligned
+				obj.store_new_value()
 		self.variables["observations"].store_log_density()
 
 	def jitter_values(self, which=None, sd=0.01):

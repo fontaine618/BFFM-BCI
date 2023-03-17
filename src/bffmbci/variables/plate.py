@@ -122,3 +122,7 @@ class Plate:
 	def data(self, value: dict[str: torch.Tensor]):
 		for k, v in value.items():
 			self.variables[k].data = v
+
+	def store_new_value(self, store=False):
+		for v in self.values():
+			v.store_new_value(store)
