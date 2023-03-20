@@ -115,13 +115,16 @@ class NonnegativeGaussianProcess(GaussianProcess):
 		super().__init__(n_copies, kernel, mean)
 
 	def _dist(self, mean, covariance):
-		return TruncatedMultivariateGaussian(mean=mean, covariance=covariance, lower=0., upper=float("inf"))
+		# return TruncatedMultivariateGaussian(mean=mean, covariance=covariance, lower=0., upper=float("inf"))
+		return TruncatedMultivariateGaussian(mean=mean, covariance=covariance, lower=0., upper=100.)
 
 	def generate(self):
 		value = self.mean.data.clone().detach()
 		for k in range(value.shape[0]):
+			# dist = TruncatedMultivariateGaussian(mean=self.mean.data[k, :], covariance=self.kernel.cov,
+			#                                      lower=0., upper=float("inf"))
 			dist = TruncatedMultivariateGaussian(mean=self.mean.data[k, :], covariance=self.kernel.cov,
-			                                     lower=0., upper=float("inf"))
+			                                     lower=0., upper=100.)
 			value[k, :] = dist.sample(self.mean.data[k, :])
 		self._set_value(value)
 
