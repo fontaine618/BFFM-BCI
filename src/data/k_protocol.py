@@ -115,20 +115,16 @@ class KProtocol:
         for i, (b, e) in enumerate(zip(begin, end)):
             sequence[i, :, :e - b] = torch.tensor(filtered[b:e, :]).T
 
-        # construct stimulus tensor
+        # construct order and target tensor
+        target = torch.zeros(len(seq_ids), 12, dtype=int)
         stimulus = torch.zeros(len(seq_ids), 12, dtype=int)
         for i, seq_id in enumerate(seq_ids):
-            stimulus[i, :] = torch.tensor(
-                stimulus_data["src"].loc[stimulus_data["sequence"] == seq_id].values.astype(int)
-            )
-
-        # construct target tensor
-        target = torch.zeros(len(seq_ids), 12, dtype=int)
-        for i, seq_id in enumerate(seq_ids):
             which = stimulus_data["sequence"] == seq_id
-            is_target = stimulus_data["type"].loc[which].values.astype(int)
             order = stimulus_data["src"].loc[which].values.astype(int)
-            target[i, :] = torch.tensor(is_target[order.argsort()])
+            inv_order = order.argsort()
+            stimulus[i, :] = torch.tensor(inv_order)
+            is_target = stimulus_data["type"].loc[which].values.astype(int)
+            target[i, :] = torch.tensor(is_target)
 
         # downsample
         sequence = sequence[:, :, ::downsample]
