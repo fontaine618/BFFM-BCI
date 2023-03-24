@@ -125,9 +125,10 @@ class KProtocol:
         # construct target tensor
         target = torch.zeros(len(seq_ids), 12, dtype=int)
         for i, seq_id in enumerate(seq_ids):
-            target[i, :] = torch.tensor(
-                stimulus_data["type"].loc[stimulus_data["sequence"] == seq_id].values.astype(int)
-            )
+            which = stimulus_data["sequence"] == seq_id
+            is_target = stimulus_data["type"].loc[which].values.astype(int)
+            order = stimulus_data["src"].loc[which].values.astype(int)
+            target[i, :] = torch.tensor(is_target[order.argsort()])
 
         # downsample
         sequence = sequence[:, :, ::downsample]
