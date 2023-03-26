@@ -120,11 +120,15 @@ class KProtocol:
         stimulus = torch.zeros(len(seq_ids), 12, dtype=int)
         for i, seq_id in enumerate(seq_ids):
             which = stimulus_data["sequence"] == seq_id
+            # this is the "source", i.e., the row/col identifier
             order = stimulus_data["src"].loc[which].values.astype(int)
+            # we rather need the reverse: when a row/column is presented
             inv_order = order.argsort()
             stimulus[i, :] = torch.tensor(inv_order)
+            # this is "type", i.e., whether the active sitmulus is a target
             is_target = stimulus_data["type"].loc[which].values.astype(int)
-            target[i, :] = torch.tensor(is_target)
+            # we rather want the reverse: which row/column is a target
+            target[i, :] = torch.tensor(is_target[inv_order])
 
         # downsample
         sequence = sequence[:, :, ::downsample]
