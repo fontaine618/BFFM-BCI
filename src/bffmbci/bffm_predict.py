@@ -52,10 +52,16 @@ class BFFMPredict:
     @property
     def combinations(self) -> torch.Tensor:
         Js = self.dimensions["n_stimulus"]
+        # TODO this is hard coded for 6-6
+        Js = (6, 6)
         combinations = torch.cartesian_prod(*[torch.arange(J) for J in Js])
         to_add = torch.cumsum(torch.Tensor([0] + list(Js))[0:-1], 0).reshape(1, -1)
         combinations = combinations + to_add
         combinations = torch.nn.functional.one_hot(combinations.long(), sum(Js)).sum(1)
+        # this is hard coded for 12 choose 2
+        # i0, i1 = torch.tril_indices(12, 12, offset=-1)
+        # combinations = torch.nn.functional.one_hot(i0.long(), 12)
+        # combinations += torch.nn.functional.one_hot(i1.long(), 12)
         return combinations  # L x J
 
     def predict(

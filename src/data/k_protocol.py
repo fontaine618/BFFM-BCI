@@ -87,6 +87,17 @@ class KProtocol:
         parameters = {k: _array_to_dict(v[0][0]) for k, v in parameters.items()}
         sampling_rate: int = parameters["SamplingRate"]["NumericValue"][0][0]
 
+        characters = [x[0][0] for x in parameters["TargetDefinitions"]["Value"]]
+        rows = np.arange(1, 7).repeat(6)
+        columns = np.tile(np.arange(1, 7), 6)
+
+        design = pd.DataFrame({
+            "character": characters,
+            "row": rows,
+            "column": columns,
+            "stimulus_code": [(row-1, col+5) for row, col in zip(rows, columns)]
+        })
+
         # bandpass filter
         bandpass = scipy.signal.butter(
             N=bandpass_order,
@@ -118,6 +129,7 @@ class KProtocol:
         # construct order and target tensor
         target = torch.zeros(len(seq_ids), 12, dtype=int)
         stimulus = torch.zeros(len(seq_ids), 12, dtype=int)
+        character_idx = torch.zeros(len(seq_ids), dtype=int)
         for i, seq_id in enumerate(seq_ids):
             which = stimulus_data["sequence"] == seq_id
             # this is the "source", i.e., the row/col identifier
@@ -129,6 +141,7 @@ class KProtocol:
             is_target = stimulus_data["type"].loc[which].values.astype(int)
             # we rather want the reverse: which row/column is a target
             target[i, :] = torch.tensor(is_target[inv_order])
+            character_idx[i] = stimulus_data["character"].loc[which].values[0]
 
         # downsample
         sequence = sequence[:, :, ::downsample]
@@ -153,3 +166,8 @@ class KProtocol:
         self.stimulus_data = stimulus_data
         self.stimulus_to_stimulus_interval = sts_interval
         self.stimulus_window = stimulus_window
+        self.design = design
+        self.character_idx = character_idx - 1
+        # I'm not sure if this is correct, but this is what Tianwen used
+        self.channel_names = ['F3', 'Fz', 'F4', 'T7', 'C3', 'Cz', 'C4', 'T8',
+                       'CP3', 'CP4', 'P3', 'Pz', 'P4', 'PO7', 'PO8', 'Oz']
