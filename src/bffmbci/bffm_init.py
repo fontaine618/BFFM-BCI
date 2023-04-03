@@ -33,7 +33,8 @@ def bffm_initializer(
 			smgp=smgp,
 			sequence_data=sequence_data,
 			stimulus_to_stimulus_interval=d,
-			window_length=w
+			window_length=w,
+			activation="identity"
 		)
 		# get variance at each timepoint, we just need one slice
 		variance = superposition.compute_superposition()[:, 0, :]

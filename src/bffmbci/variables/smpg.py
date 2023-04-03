@@ -18,6 +18,7 @@ class SMGP(Plate):
 	"""
 
 	_store = True
+	_dim_names = ["n_processes", "n_timepoints"]
 
 	def __init__(
 			self,
@@ -45,6 +46,7 @@ class SMGP(Plate):
 		self.nontarget_process.name = "nontarget_process"
 		self.target_process.name = "target_process"
 		self.mixing_process.name = "mixing_process"
+		self._dim = n_latent, kernel_gp.shape[0]
 
 	@property
 	def processes(self):
@@ -53,26 +55,6 @@ class SMGP(Plate):
 		alpha1 = self.target_process.data
 		beta1 = (1. - zeta) * alpha0 + zeta * alpha1
 		return alpha0, beta1
-
-	# @property
-	# def data(self):
-	# 	proc = self.processes
-	# 	return {
-	# 		"nontarget_process": proc[0],
-	# 		"target_process": proc[1],
-	# 		"mixing_process": self.mixing_process.data
-	# 	}
-
-	# def chain(self, start=0, end=None, thin=1):
-	# 	zeta = self.mixing_process.chain(start=start, end=end, thin=thin)
-	# 	alpha0 = self.nontarget_process.chain(start=start, end=end, thin=thin)
-	# 	alpha1 = self.target_process.chain(start=start, end=end, thin=thin)
-	# 	beta1 = (1. - zeta) * alpha0 + zeta * alpha1
-	# 	return {
-	# 		"nontarget_process": alpha0,
-	# 		"target_process": beta1,
-	# 		"mixing_process": zeta
-	# 	}
 
 
 class IndependentSMGP(SMGP):

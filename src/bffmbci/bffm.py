@@ -29,11 +29,12 @@ class BFFModel:
 			n_channels: int = 15,
 			independent_smgp: bool = False,
 			nonnegative_smgp: bool = True,
+			scaling_activation: str = "identity",
 			**kwargs
 	):
 		self._dimensions = {
 			"n_sequences": n_sequences,
-			"n_timepoints": (sum(n_stimulus) - 1) * stimulus_to_stimulus_interval + stimulus_window,
+			"n_timepoints": (n_stimulus[0] - 1) * stimulus_to_stimulus_interval + stimulus_window,
 			"n_channels": n_channels,
 			"n_stimulus": n_stimulus,
 			"stimulus_window": stimulus_window,
@@ -48,7 +49,8 @@ class BFFModel:
 			stimulus_order=stimulus_order,
 			target_stimulus=target_stimulus,
 			independent_smgp=independent_smgp,
-			nonnegative_smgp=nonnegative_smgp
+			nonnegative_smgp=nonnegative_smgp,
+			scaling_activation=scaling_activation
 		)
 		self._sampling_order = [
 			"factor_processes",
@@ -79,7 +81,8 @@ class BFFModel:
 			stimulus_order: torch.Tensor,
 			target_stimulus: torch.Tensor,
 			independent_smgp: bool = False,
-			nonnegative_smgp: bool = True
+			nonnegative_smgp: bool = True,
+			scaling_activation: str = "identity"
 	):
 		parms = self.prior_parameters
 		dims = self._dimensions
@@ -122,7 +125,7 @@ class BFFModel:
 			kernel_gp_loading_processes,
 			kernel_tgp_loading_processes,
 			0.5,
-			1.
+			0.
 		)
 		if independent_smgp:
 			smgp_scaling = IndependentSMGP(
@@ -130,7 +133,7 @@ class BFFModel:
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
 				0.5,
-				1.
+				0.
 			)
 		if nonnegative_smgp:
 			smgp_scaling = NonnegativeSMGP(
@@ -138,7 +141,7 @@ class BFFModel:
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
 				0.5,
-				1.
+				0.
 			)
 
 		# Loading processes
@@ -146,7 +149,8 @@ class BFFModel:
 			smgp=smgp_scaling,
 			sequence_data=sequence_data,
 			stimulus_to_stimulus_interval=dims["stimulus_to_stimulus_interval"],
-			window_length=dims["stimulus_window"]
+			window_length=dims["stimulus_window"],
+			activation=scaling_activation
 		)
 		loading_processes.name = "loading_processes"
 
@@ -178,7 +182,8 @@ class BFFModel:
 			smgp=smgp_factors,
 			sequence_data=sequence_data,
 			stimulus_to_stimulus_interval=dims["stimulus_to_stimulus_interval"],
-			window_length=dims["stimulus_window"]
+			window_length=dims["stimulus_window"],
+			activation="identity"
 		)
 		mean_factor_processes.name = "factor_processes"
 
@@ -211,7 +216,7 @@ class BFFModel:
 		smgp_scaling.add_children(superposition=loading_processes)
 		smgp_factors.add_children(superposition=mean_factor_processes)
 		loading_processes.add_children(observations=observations)
-		mean_factor_processes.add_children(child=factor_processes, observations=observations)
+		mean_factor_processes.add_children(child=factor_processes, observations=factor_processes)
 		factor_processes.add_children(observations=observations)
 
 		# TODO: maybe this should be a plate?
@@ -234,12 +239,11 @@ class BFFModel:
 			cls,
 			n_characters: int = 19,
 			n_repetitions: int = 15,
-			n_stimulus: Tuple[int, int] = (6, 6),
+			n_stimulus: Tuple[int, int] = (12, 2), # 12 choose 2
 			n_channels: int = 15,
 			stimulus_window: int = 55,
 			stimulus_to_stimulus_interval: int = 10,
 			latent_dim: int = 3,
-			n_sequences: int = None,
 			**kwargs
 	):
 		stimulus_order, target_stimulus = _create_sequence_data(n_characters, n_repetitions, n_stimulus)
@@ -252,6 +256,7 @@ class BFFModel:
 			latent_dim=latent_dim,
 			n_channels=n_channels,
 			n_sequences=n_characters * n_repetitions,
+			n_stimulus=n_stimulus,
 			**kwargs
 		)
 
@@ -419,19 +424,11 @@ class BFFModel:
 
 def _create_sequence_data(n_characters, n_repetitions, n_stimulus):
 	n_sequences = n_characters * n_repetitions
-	stimulus_order = torch.hstack([
-		torch.vstack([torch.randperm(n_stimulus[i]) for _ in range(n_sequences)]) +
-		(n_stimulus[i - 1] if i > 0 else 0)
-		for i in range(len(n_stimulus))
+	stimulus_order = torch.vstack([torch.randperm(n_stimulus[0]) for _ in range(n_sequences)])
+	target_stimulus = torch.vstack([
+		torch.randperm(n_stimulus[0])[:n_stimulus[1]]
+		for _ in range(n_characters)
 	])
-	target_stimulus = torch.hstack([
-		torch.randint(
-			low=n_stimulus[i - 1] if i > 0 else 0,
-			high=(n_stimulus[i - 1] if i > 0 else 0) + n_stimulus[i],
-			size=(n_characters, 1)
-		)
-		for i in range(len(n_stimulus))
-	])
-	target_stimulus = target_stimulus.repeat(n_repetitions, 1)
-	target_stimulus = F.one_hot(target_stimulus, num_classes=sum(n_stimulus)).max(1).values
+	target_stimulus = target_stimulus.repeat_interleave(n_repetitions, 0)
+	target_stimulus = F.one_hot(target_stimulus, num_classes=n_stimulus[0]).max(1).values
 	return stimulus_order, target_stimulus

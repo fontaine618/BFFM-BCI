@@ -22,8 +22,14 @@ class Superposition(Variable):
 			smgp: SMGP,
 			sequence_data: SequenceData,
 			stimulus_to_stimulus_interval: int,
-			window_length: int
+			window_length: int,
+			activation: str = "identity"
 	):
+		self.activation = {
+			"i": lambda x: x,
+			"e": torch.exp,
+			"r": torch.relu,
+		}[activation[0]] # match on first letter
 		self.smgp = smgp
 		self.sequence_data = sequence_data
 		self._stimulus_to_stimulus_interval = stimulus_to_stimulus_interval
@@ -67,33 +73,10 @@ class Superposition(Variable):
 		shift_n = torch.where(which_n, shift_n, W)
 		p_in = torch.cat([p_in, torch.zeros(N, K, J, 1)], 3)
 		value = torch.gather(p_in, 3, shift_n).sum(2)
-		return value
+		return self.activation(value)
 
 	def generate(self):
 		self._set_value(self.compute_superposition(), store=False)
-
-	# def parameter_update_for_sampling(self, which: str, k: int):
-	# 	# so we can have the same class for both
-	# 	process_k = torch.nn.Parameter(
-	# 		torch.zeros_like(self.smgp.__getattribute__(which).data[k, :]),
-	# 		requires_grad=True
-	# 	)
-	#
-	# 	def f(x):
-	# 		process = self.smgp.__getattribute__(which).data
-	# 		process[k, :] = x
-	# 		self.smgp.__getattribute__(which)._set_value(process)
-	# 		self.generate()
-	# 		return self.child.mean
-	#
-	# 	# this could more efficient if done incrementally so we dont have to store the whole thing
-	# 	m0 = f(process_k)
-	# 	J = jacobian(f, process_k)
-	# 	mt = self.child.data - m0
-	# 	sig_inv = self.child.observation_variance.data.pow(-1)
-	# 	prec = torch.einsum("netu, e, netv -> uv", J, sig_inv, J)
-	# 	mtp = torch.einsum("netu, e, net -> u", J, sig_inv, mt)
-	# 	return prec, mtp
 
 	def sample(self, store=False):
 		# ensure we satisfy equalities, no need to save

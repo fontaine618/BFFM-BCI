@@ -12,17 +12,20 @@ latent_dim = 3
 n_iter = 100
 n_chains = 5
 
-torch.manual_seed(1)
+torch.manual_seed(0)
 model = BFFModel.generate_from_dimensions(
 	latent_dim=latent_dim,
 	n_channels=7,
 	stimulus_to_stimulus_interval=10,
 	stimulus_window=55,
-	n_stimulus=(3, 3),
-	n_sequences=200,
-	nonnegative_smgp=True,
+	n_stimulus=(9, 2),
+	n_characters=17,
+	n_repetitions=5,
 	heterogeneities=3.,
-	shrinkage_factor=(10., 10.),
+	shrinkage_factor=(2., 5.),
+	nonnegative_smgp=False,
+	scaling_activation="e",
+	kernel_gp_loading_processes=(0.99, 0.1, 1.)
 )
 
 true_values = model.data
@@ -35,7 +38,7 @@ model.initialize_chain()
 
 # run for a bit
 # torch.manual_seed(0)
-for i in range(1000):
+for i in range(100):
 	model.sample()
 	llk = model.variables['observations'].log_density_history[-1]
 	print(f"[MCMC] Iteration: {i:>4} Log-likelihood: "
@@ -43,50 +46,49 @@ for i in range(1000):
 	if abs(llk) > 1e8:
 		break
 
-# save / load
-filename = "/home/simon/Documents/BCI/experiments/tmp.model"
-model.save(filename)
-model = BFFModel.load_file(filename)
 
-# check nans
-for k, v in model.data.items():
-	if isinstance(v, dict):
-		for kk, vv in v.items():
-			print(k, kk, torch.isnan(vv).double().mean().item())
-	else:
-		print(k, torch.isnan(v).double().mean().item())
 
-# check large
-for k, v in model.data.items():
-	if isinstance(v, dict):
-		for kk, vv in v.items():
-			print(k, kk, torch.abs(vv).max().item())
-	else:
-		print(k, torch.abs(v).max().item())
+plt.cla()
+plt.plot(
+	model.variables["loading_processes"].data[12, :, :].cpu().T
+)
+# plt.yscale("log")
+plt.show()
+
+model.sample()
+plt.cla()
+plt.plot(
+	model.variables["smgp_scaling"].processes[0].cpu().T
+)
+plt.show()
 
 
 
 
+self = model.variables["smgp_scaling"].nontarget_process
+print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_proposals)
+self = model.variables["smgp_scaling"].target_process
+print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_proposals)
+self = model.variables["smgp_scaling"].mixing_process
+print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_proposals)
+
+self = model.variables["smgp_factors"].nontarget_process
+print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_proposals)
+self = model.variables["smgp_factors"].target_process
+print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_proposals)
+self = model.variables["smgp_factors"].mixing_process
+print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_proposals)
+
+self = model.variables["smgp_factors"].target_process
+
+self = self.superposition.observations
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+for k, v in model.variables.items():
+    print(k)
+	print(v)
 
 
 

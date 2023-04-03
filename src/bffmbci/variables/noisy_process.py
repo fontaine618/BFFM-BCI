@@ -101,49 +101,11 @@ class NoisyProcesses(Variable):
 		z[:, k, :] = 0.
 		return jac, self.observations.mean(factor_processes=z)
 
-	# def _get_linear_transform3(self, k, value):
-	# 	z = value.detach().clone()
-	# 	zk = torch.nn.Parameter(z[:, k, :], requires_grad=True)
-	#
-	# 	def f(zk):
-	# 		z[:, k, :] = zk
-	# 		return self.observations.mean(factor_processes=z)
-	#
-	# 	L = jacobian(f, zk, strategy="forward-mode", vectorize=True)  # should be (N x E x T) x (N x T)
-	# 	# drop useless parts of L
-	# 	L = torch.stack([L[i, :, :, i, :] for i in range(L.shape[0])])  # should be (N x E x T x T)
-	# 	fmk = f(0.)
-	# 	return L.detach(), fmk.detach()
-
-	# def _get_linear_transform2(self, k, value):
-	# 	z = value.detach().clone()
-	# 	zk = torch.nn.Parameter(z[:, k, :], requires_grad=True)
-	#
-	# 	def f(zk):
-	# 		z[:, k, :] = zk
-	# 		return self.observations.mean(factor_processes=z).sum(0)
-	#
-	# 	def fn(zk):
-	# 		z[:, k, :] = zk
-	# 		return self.observations.mean(factor_processes=z)
-	#
-	# 	L = jacobian(f, zk, strategy="forward-mode", vectorize=True).movedim(2, 0)
-	# 	fmk = fn(0.)
-	# 	return L.detach(), fmk.detach()
-
-	# def _get_linear_transform_functorch(self, k, value):
-	# 	z = value.detach().clone()
-	# 	# get linear transform
-	# 	zk = torch.nn.Parameter(z[:, k, :], requires_grad=True)
-	#
-	# 	def f(zk):
-	# 		z[:, k, :] = zk
-	#
-	# 		return self.observations.mean(factor_processes=z)
-	#
-	# 	compute_batch_jacobian = vmap(jacrev(functionalize(f)))
-	# 	compute_batch_jacobian = vmap(jacfwd(f))
-	# 	L = compute_batch_jacobian(zk)
-	#
-	# 	fmk = f(0.)
-	# 	return L.detach(), fmk.detach()
+	@property
+	def log_density(self):
+		chol = self.kernel.chol
+		mean = self.mean.data
+		value = self.data
+		dist = torch.distributions.multivariate_normal.MultivariateNormal(loc=mean, scale_tril=chol)
+		logp = dist.log_prob(value)
+		return logp.sum().item()
