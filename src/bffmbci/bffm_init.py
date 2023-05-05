@@ -43,7 +43,7 @@ def bffm_initializer(
 		# X = sequences.reshape(-1, E)  # inverse is .reshape(N, T, E)
 		X = torch.vstack([sequences[i, :, :].T for i in range(sequences.shape[0])])
 		fa = WFA(K)
-		fa.fit(X, W)
+		fa.fit(X) #, W)
 		loadings = fa._loadings
 		observation_variance = fa._observation_variance
 		factors = fa._m1

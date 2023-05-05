@@ -47,18 +47,25 @@ for i in range(100):
 		break
 
 
+plt.cla()
+plt.plot(
+	model.variables["mean_factor_processes"].data[11, :, :].cpu().T
+)
+# plt.yscale("log")
+plt.show()
+
 
 plt.cla()
 plt.plot(
-	model.variables["loading_processes"].data[12, :, :].cpu().T
+	model.variables["loading_processes"].data[11, :, :].cpu().T
 )
-# plt.yscale("log")
+plt.yscale("log")
 plt.show()
 
 model.sample()
 plt.cla()
 plt.plot(
-	model.variables["smgp_scaling"].processes[0].cpu().T
+	model.variables["smgp_factors"].processes[1].cpu().T
 )
 plt.show()
 

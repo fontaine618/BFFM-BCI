@@ -28,15 +28,8 @@ To do
 [ ] Lit review
 [ ] downample, rank one nonzero
 
-[ ] Implement elliptical slice sampler
-[ ] Implement activation function for superposition
-    [ ] Identity (default)
-    [ ] Exponential
-    [ ] How to deal with constraints? not really
-        an activation; seems like we just need to auto reject in ESS
-        Maybe have a check_constraint function: for TGP, this
-        needs to argument, for the superposition constraint,
-        we need more
+[ ] better proposals for ESS
+[ ] Metropolis
 
 
 

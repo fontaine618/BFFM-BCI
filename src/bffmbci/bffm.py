@@ -318,12 +318,12 @@ class BFFModel:
 				obj = self.variables[v1][v2]
 			else:
 				obj = self.variables[var]
-			try:
-				obj.sample()
-			except Exception as e:
-				print(f"Error sampling {var}: {e}.")
-				# we need to append to the history, otherwise the samples will be misaligned
-				obj.store_new_value()
+			# try:
+			obj.sample()
+			# except Exception as e:
+			# 	print(f"Error sampling {var}: {e}.")
+			# 	# we need to append to the history, otherwise the samples will be misaligned
+			# 	obj.store_new_value()
 		self.variables["observations"].store_log_density()
 
 	def jitter_values(self, which=None, sd=0.01):
@@ -361,19 +361,19 @@ class BFFModel:
 		self.variables["smgp_factors"].nontarget_process.data.zero_()
 		self.variables["smgp_factors"].target_process.data.zero_()
 		self.variables["smgp_factors"].mixing_process.data.fill_(0.5)
-		self.variables["smgp_scaling"].nontarget_process.data.fill_(1.)
-		self.variables["smgp_scaling"].target_process.data.fill_(1.)
+		self.variables["smgp_scaling"].nontarget_process.data.fill_(0.)
+		self.variables["smgp_scaling"].target_process.data.fill_(0.)
 		self.variables["smgp_scaling"].mixing_process.data.fill_(0.5)
 		self.sample(["mean_factor_processes"])
 		self.sample(["smgp_factors"])
 		self.sample(["mean_factor_processes"])
 		self.sample(["factor_processes"])
-		# compute the loadings processes by dividing and clipping above 0
-		z = self.variables["factor_processes"].data
-		lprocesses = 1. + (sfactors - z) / torch.where(z.abs() > 0.1, z, torch.ones_like(z))
-		lprocesses = torch.clamp(lprocesses, min=0., max=5.)
-		lprocesses = lprocesses @ smat
-		self.variables["loading_processes"].data = lprocesses
+		# # compute the loadings processes by dividing and clipping above 0
+		# z = self.variables["factor_processes"].data
+		# lprocesses = 1. + (sfactors - z) / torch.where(z.abs() > 0.1, z, torch.ones_like(z))
+		# lprocesses = torch.clamp(lprocesses, min=0., max=5.)
+		# lprocesses = lprocesses @ smat
+		# self.variables["loading_processes"].data = lprocesses
 		self.sample(["smgp_scaling"])
 		self.sample(["loading_processes"])
 		self.clear_history()
