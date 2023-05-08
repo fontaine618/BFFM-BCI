@@ -181,8 +181,8 @@ class MCMCResults:
         if not self._aligned:
             warnings.warn("The chains were not aligned. The posterior means may not correct.")
         if by_chains:
-            return {k: v.mean(1) for k, v in self.chains.items()}
-        return {k: v.mean((0, 1)) for k, v in self.chains.items()}
+            return {k: v._mean(1) for k, v in self.chains.items()}
+        return {k: v._mean((0, 1)) for k, v in self.chains.items()}
 
     def posterior_median(self, by_chains=False):
         if not self._aligned:
@@ -414,19 +414,19 @@ def add_transformed_variables(chains):
             chains["smgp_scaling.difference_process"] / s.sqrt()
     # Scaling process global: center at 1 using geometric mean
     if "smgp_scaling.nontarget_process" in chains:
-        center = chains["smgp_scaling.nontarget_process"].log().mean(-1, keepdim=True).exp()
+        center = chains["smgp_scaling.nontarget_process"].log()._mean(-1, keepdim=True).exp()
         chains["smgp_scaling.nontarget_process_centered"] = \
             chains["smgp_scaling.nontarget_process"] / center
     if "smgp_scaling.target_process" in chains:
-        center = chains["smgp_scaling.target_process"].log().mean(-1, keepdim=True).exp()
+        center = chains["smgp_scaling.target_process"].log()._mean(-1, keepdim=True).exp()
         chains["smgp_scaling.target_process_centered"] = \
             chains["smgp_scaling.target_process"] / center
     if "smgp_scaling.target_signal" in chains:
-        center = chains["smgp_scaling.target_signal"].log().mean(-1, keepdim=True).exp()
+        center = chains["smgp_scaling.target_signal"].log()._mean(-1, keepdim=True).exp()
         chains["smgp_scaling.target_signal_centered"] = \
             chains["smgp_scaling.target_signal"] / center
     if "smgp_scaling.difference_process" in chains:
-        center = chains["smgp_scaling.difference_process"].mean(-1, keepdim=True)
+        center = chains["smgp_scaling.difference_process"]._mean(-1, keepdim=True)
         chains["smgp_scaling.difference_process_centered"] = \
             chains["smgp_scaling.difference_process"] - center
     if "smgp_scaling.difference_process" in chains and \
@@ -437,5 +437,5 @@ def add_transformed_variables(chains):
     if "smgp_scaling.nontarget_process" in chains and \
         "loadings" in chains:
         Lnorm = torch.linalg.norm(chains["loadings"], dim=-2, keepdim=False)
-        pnorm = chains["smgp_scaling.nontarget_process"].log().mean(-1, keepdim=False).exp()
+        pnorm = chains["smgp_scaling.nontarget_process"].log()._mean(-1, keepdim=False).exp()
         chains["scaling_factor"] = (pnorm * Lnorm).pow(2.)

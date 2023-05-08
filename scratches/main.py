@@ -1,4 +1,5 @@
 import torch
+import math
 import pandas as pd
 from src.bffmbci.bffm import BFFModel
 from src.results_old.mcmc_results import MCMCResults
@@ -28,6 +29,10 @@ model = BFFModel.generate_from_dimensions(
 	kernel_gp_loading_processes=(0.99, 0.1, 1.)
 )
 
+self = model.variables["smgp_factors"].mixing_process
+
+
+
 true_values = model.data
 true_llk = model.variables["observations"].log_density
 true_values["observation_log_likelihood"] = true_llk
@@ -38,7 +43,7 @@ model.initialize_chain()
 
 # run for a bit
 # torch.manual_seed(0)
-for i in range(100):
+for i in range(1000):
 	model.sample()
 	llk = model.variables['observations'].log_density_history[-1]
 	print(f"[MCMC] Iteration: {i:>4} Log-likelihood: "
@@ -46,6 +51,12 @@ for i in range(100):
 	if abs(llk) > 1e8:
 		break
 
+
+
+
+import matplotlib.pyplot as plt
+
+plt.style.use("seaborn-v0_8-whitegrid")
 
 plt.cla()
 plt.plot(
@@ -57,17 +68,28 @@ plt.show()
 
 plt.cla()
 plt.plot(
-	model.variables["loading_processes"].data[11, :, :].cpu().T
+	model.variables["loading_processes"].data[10, :, :].cpu().T
 )
-plt.yscale("log")
+# plt.yscale("log")
 plt.show()
 
 model.sample()
 plt.cla()
 plt.plot(
-	model.variables["smgp_factors"].processes[1].cpu().T
+	model.variables["smgp_scaling"].target_process.data.cpu().T
 )
 plt.show()
+
+
+from torch.autograd.functional import jacobian
+
+
+self = model.variables["smgp_scaling"].target_process
+k = 0
+value = self._value.data
+
+
+
 
 
 
@@ -89,8 +111,6 @@ print(self.n_evals, self.n_proposals, self.n_accepts, self.n_accepts / self.n_pr
 self = model.variables["smgp_factors"].target_process
 
 self = self.superposition.observations
-
-
 
 
 for k, v in model.variables.items():
@@ -245,7 +265,7 @@ L1n.T @ L0n
 
 
 
-model.variables["observations"].data.pow(2.).mean((0, 2))
+model.variables["observations"].data.pow(2.)._mean((0, 2))
 
 for iter in range(n_iter):
 	model.sample()

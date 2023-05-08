@@ -20,7 +20,7 @@ class NoisyProcesses(Variable):
 	def __init__(self, mean: Variable, kernel: Kernel):
 		dim = mean.shape
 		self.kernel = kernel
-		self.mean = mean
+		self._mean = mean
 		super().__init__(dim=dim, store=False, init=None)
 		self.parents = {"mean": mean}
 		self.observations: Variable = None
@@ -32,7 +32,7 @@ class NoisyProcesses(Variable):
 	def generate(self):
 		dist = MultivariateNormal(loc=torch.zeros(self.kernel.shape[0]), scale_tril=self.kernel.chol)
 		z = dist.sample(self.shape[:-1])
-		value = self.mean.data + z
+		value = self._mean.data + z
 		self._set_value(value)
 
 	@property
@@ -40,7 +40,7 @@ class NoisyProcesses(Variable):
 		N, K, T = self.shape
 		value = self.data
 		for k in range(K):
-			m0 = self.mean.data[:, k, :]
+			m0 = self._mean.data[:, k, :]
 			p0 = self.kernel.inv
 			mtp0 = m0 @ p0
 
@@ -57,7 +57,7 @@ class NoisyProcesses(Variable):
 		N, K, T = self.shape
 		value = self.data
 		for k in range(K):
-			m0 = self.mean.data[:, k, :]
+			m0 = self._mean.data[:, k, :]
 			p0 = self.kernel.inv
 			mtp0 = m0 @ p0
 
@@ -104,8 +104,13 @@ class NoisyProcesses(Variable):
 	@property
 	def log_density(self):
 		chol = self.kernel.chol
-		mean = self.mean.data
+		mean = self._mean.data
 		value = self.data
 		dist = torch.distributions.multivariate_normal.MultivariateNormal(loc=mean, scale_tril=chol)
 		logp = dist.log_prob(value)
 		return logp.sum().item()
+
+	@staticmethod
+	def mean(factor_processes):
+		# this is to satisfy the interface with GaussianProcesses sampling
+		return factor_processes

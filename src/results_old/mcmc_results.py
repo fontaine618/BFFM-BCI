@@ -87,7 +87,7 @@ class MCMCResults:
 	def _compute_posterior_summaries(self):
 		which = torch.arange(self.warmup, self._length, self.thin)
 		for k, v in self.variables.items():
-			self.posterior_mean[k] = v.index_select(0, which).mean(0)
+			self.posterior_mean[k] = v.index_select(0, which)._mean(0)
 			self.posterior_variance[k] = v.index_select(0, which).var(0)
 
 	def align_posterior_mean(self, true_values: dict[str, dict[str, Union[torch.Tensor, dict[str, Any]]]]):
