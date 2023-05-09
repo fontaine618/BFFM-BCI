@@ -37,7 +37,7 @@ class GaussianProcess(Variable):
 		self.n_accepts = 0
 		self.n_evals = 0
 
-		self.sample = self.rwmh_sample
+		# self.sample = self.rwmh_sample
 		self._rwmh = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
@@ -49,7 +49,7 @@ class GaussianProcess(Variable):
 
 		self._initialize_rwmh()
 
-		# self.sample = self.elliptical_slice_sampler_posterior
+		self.sample = self.elliptical_slice_sampler_posterior
 		self._ess = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
