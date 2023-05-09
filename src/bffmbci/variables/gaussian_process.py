@@ -37,7 +37,7 @@ class GaussianProcess(Variable):
 		self.n_accepts = 0
 		self.n_evals = 0
 
-		# self.sample = self.rwmh_sample
+		self.sample = self.rwmh_sample
 		self._rwmh = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
@@ -60,7 +60,7 @@ class GaussianProcess(Variable):
 			covariance_matrix=self.kernel.cov
 		)
 
-		self.sample = self.mala_sample
+		# self.sample = self.mala_sample
 		self._mala = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
