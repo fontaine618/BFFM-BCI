@@ -145,6 +145,7 @@ class BFFMPredict:
             stimulus_order=order_repeated,
             target_stimulus=target_repeated,
             sequences=sequence_repeated,
+            scaling_activation="exp", # TODO: this is hard coded
             **self.prior,
             **self.dimensions,
         )
