@@ -49,7 +49,7 @@ class GaussianProcess(Variable):
 
 		self._initialize_rwmh()
 
-		self.sample = self.elliptical_slice_sampler_posterior
+		# self.sample = self.elliptical_slice_sampler_posterior
 		self._ess = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
@@ -60,7 +60,7 @@ class GaussianProcess(Variable):
 			covariance_matrix=self.kernel.cov
 		)
 
-		# self.sample = self.mala_sample
+		self.sample = self.mala_sample
 		self._mala = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
