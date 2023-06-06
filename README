@@ -23,19 +23,25 @@ To do
 [ ] More Prediction metrics
 [x] Entropy
 [x] ESS
-[ ] Trace plot
-[ ] Run longer, continue from previous
-[ ] Lit review
-[ ] downample, rank one nonzero
-
-[ ] better proposals for ESS
-[ ] Metropolis
 
 
+[ ] Tuning:
+    - smoothness parameter
+    - K
+[ ] ESS along the 50K
+[ ] Prediction, testing
+[ ] DIC or BF / TEST
+[ ] Posterior predictive check, bayesian p-value
+     - check literature for important statistics
+     - P300 feature extractions
+ https://projecteuclid.org/journals/annals-of-statistics/volume-22/issue-3/Posterior-Predictive-p-Values/10.1214/aos/1176325622.full
+https://pubmed.ncbi.nlm.nih.gov/19174332/
+www.stat.columbia.edu/~gelman/research/published/A6n41.pdf
+
+[ ] Something is wrong with prediction
 
 Backlog
 =======
-[ ] Can I improve TG sampling?
 
 
 Commands

@@ -3,8 +3,8 @@ import torch
 import numpy as np
 import arviz as az
 import pickle
-from ..bffmbci import BFFMPredict
-from .metrics import metrics
+from . import BFFMPredict
+from results.metrics import metrics
 import warnings
 from collections import defaultdict
 
@@ -24,7 +24,7 @@ def _flatten_dict(d: dict[str: Any]) -> dict[str: Any]:
     return out
 
 
-class MCMCResults:
+class BFFMResults:
     """Results of an MCMC run.
 
     Indexing:
@@ -50,6 +50,7 @@ class MCMCResults:
         prior: dict[str: Any],
         dimensions: dict[str: int],
         chains: dict[str: torch.Tensor],
+        settings: dict[str: Any] | None = None,
         warmup: int = 0,
         thin: int = 1,
         warmed_up: int = 0,
@@ -60,6 +61,7 @@ class MCMCResults:
         Most likely, the other class methods should be used to create an instance of this class."""
         self.prior = prior
         self.dimensions = dimensions
+        self.settings = settings if settings is not None else dict()
         self.chains = chains
         self.warmup = warmed_up
         self.thin = thinned
@@ -76,7 +78,7 @@ class MCMCResults:
             cls,
             files: list[list[str]] | list[str],
             **kwargs
-    ) -> "MCMCResults":
+    ) -> "BFFMResults":
         """Each element is understood to be a chain. Then, each element can be multiple
         files for a single chain"""
         return cls.concat([cls.from_files_single_chain(f, **kwargs) for f in files], 0)
@@ -86,14 +88,14 @@ class MCMCResults:
             cls,
             files: list[str] | str,
             **kwargs
-    ) -> "MCMCResults":
+    ) -> "BFFMResults":
         """Each element is understood to be part of a single chain."""
         if isinstance(files, str):
             files = [files]
         return cls.concat([cls._read_file_single_chain(f, **kwargs) for f in files], 1)
 
     @classmethod
-    def _read_file_single_chain(cls, file: str, **kwargs) -> "MCMCResults":
+    def _read_file_single_chain(cls, file: str, **kwargs) -> "BFFMResults":
         """Each element is understood to be part of a single chain."""
         print(suffix + "Reading file")
         print(padding + f"'{file}'")
@@ -103,7 +105,7 @@ class MCMCResults:
         return cls.single_chain(**result, **kwargs)
 
     @classmethod
-    def single_chain(cls, prior, dimensions, chain, log_likelihood=None, **kwargs) -> "MCMCResults":
+    def single_chain(cls, prior, dimensions, chain, log_likelihood=None, **kwargs) -> "BFFMResults":
         """We assume the input does not have a first dimension for chain id."""
         # we create the new chain id dimension
         chain["log_likelihood"] = log_likelihood
@@ -118,14 +120,14 @@ class MCMCResults:
         )
 
     @classmethod
-    def concat(cls, results: list["MCMCResults"], dim: int) -> "MCMCResults":
+    def concat(cls, results: list["BFFMResults"], dim: int) -> "BFFMResults":
         """dim=0 means multiple chains, dim=1 means concatenate"""
         out = results[0]
         for r in results[1:]:
             out = out.append(r, dim)
         return out
 
-    def append(self, other: "MCMCResults", dim: int) -> "MCMCResults":
+    def append(self, other: "BFFMResults", dim: int) -> "BFFMResults":
         """Append other to self. Assumes that the other has the same prior, dimensions, etc."""
         repr_pre = repr(self)
         self._check_parameters(other)
@@ -150,14 +152,14 @@ class MCMCResults:
                         self.chains[k], self.chains[k][:, (dim[1]-max_length):, ...]
                     ], 1)
 
-    def _check_parameters(self, other: "MCMCResults"):
+    def _check_parameters(self, other: "BFFMResults"):
         """Check that the other has the same prior, dimensions, etc."""
         if self.warmup != other.warmup:
-            raise ValueError("Warmup is different between two MCMCResults")
+            warnings.warn("Warmup is different between two MCMCResults")
         if self.thin != other.thin:
-            raise ValueError("Thinning is different between two MCMCResults")
+            warnings.warn("Thinning is different between two MCMCResults")
         if self.prior != other.prior:
-            raise ValueError("Prior is different between two MCMCResults")
+            warnings.warn("Prior is different between two MCMCResults")
         if self.dimensions != other.dimensions:
             raise ValueError("Dimensions are different between two MCMCResults")
         if self.chains.keys() != other.chains.keys():
@@ -337,7 +339,12 @@ class MCMCResults:
             k: self.chains[k].flatten(0, 1)[::thin, ...]
             for k in self._sufficient_for_prediction
         }
-        return BFFMPredict(variables=variables, dimensions=self.dimensions, prior=self.prior)
+        return BFFMPredict(
+            variables=variables,
+            dimensions=self.dimensions,
+            prior=self.prior,
+            settings=self.settings
+        )
 
 
 def add_transformed_variables(chains):

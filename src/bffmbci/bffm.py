@@ -28,8 +28,8 @@ class BFFModel:
 			n_sequences: int = 15*19,
 			n_channels: int = 15,
 			independent_smgp: bool = False,
-			nonnegative_smgp: bool = True,
-			scaling_activation: str = "identity",
+			nonnegative_smgp: bool = False,
+			scaling_activation: str = "exp",
 			**kwargs
 	):
 		self._dimensions = {
@@ -44,6 +44,7 @@ class BFFModel:
 		self.prior_parameters = {}
 		self._initialize_prior_parameters(**kwargs)
 		self.variables = {}
+		self._settings = {}
 		self._prepare_model(
 			sequences=sequences,
 			stimulus_order=stimulus_order,
@@ -81,9 +82,13 @@ class BFFModel:
 			stimulus_order: torch.Tensor,
 			target_stimulus: torch.Tensor,
 			independent_smgp: bool = False,
-			nonnegative_smgp: bool = True,
-			scaling_activation: str = "identity"
+			nonnegative_smgp: bool = False,
+			scaling_activation: str = "exp"
 	):
+		self._settings["independent_smgp"] = independent_smgp
+		self._settings["nonnegative_smgp"] = nonnegative_smgp
+		self._settings["scaling_activation"] = scaling_activation
+
 		parms = self.prior_parameters
 		dims = self._dimensions
 
@@ -405,6 +410,7 @@ class BFFModel:
 			"log_likelihood": {"observations": llk},
 			"prior": self.prior_parameters,
 			"dimensions": self._dimensions,
+			"settings": self._settings,
 			"thinned": thin,
 			"warmed_up": start,
 			"variables": self.data

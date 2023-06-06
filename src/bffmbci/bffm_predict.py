@@ -1,10 +1,13 @@
 import torch
+from typing import Any, Callable
 import math
 from .utils import Kernel
 import scipy
 import numpy as np
 from torch.distributions.multivariate_normal import MultivariateNormal
 from . import BFFModel
+
+T = torch.Tensor
 
 
 class BFFMPredict:
@@ -23,17 +26,19 @@ class BFFMPredict:
 
     def __init__(
             self,
-            variables: dict[str, torch.Tensor],
-            dimensions: dict,
-            prior: dict,
+            variables: dict[str: T],
+            dimensions: dict[str: Any],
+            prior: dict[str: Any],
+            settings: dict[str: Any],
             character_labels: list[str] | None = None
     ):
         self.variables = variables
         self.dimensions = dimensions
         self.prior = prior
+        self.settings = settings
         p = prior["kernel_gp_factor"]
         tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dimensions["n_timepoints"]) * p[2]))
-        self._kernel = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
+        self._kernel = Kernel.from_covariance_matrix(T(tmat) * p[1])
         self._dist = MultivariateNormal(
             loc=torch.zeros(self._kernel.shape[0]),
             scale_tril=self._kernel.chol
@@ -50,12 +55,12 @@ class BFFMPredict:
         return self.variables["loadings"].shape[0]
 
     @property
-    def combinations(self) -> torch.Tensor:
+    def combinations(self) -> T:
         Js = self.dimensions["n_stimulus"]
         # TODO this is hard coded for 6-6
         Js = (6, 6)
         combinations = torch.cartesian_prod(*[torch.arange(J) for J in Js])
-        to_add = torch.cumsum(torch.Tensor([0] + list(Js))[0:-1], 0).reshape(1, -1)
+        to_add = torch.cumsum(T([0] + list(Js))[0:-1], 0).reshape(1, -1)
         combinations = combinations + to_add
         combinations = torch.nn.functional.one_hot(combinations.long(), sum(Js)).sum(1)
         # this is hard coded for 12 choose 2
@@ -66,10 +71,10 @@ class BFFMPredict:
 
     def predict(
             self,
-            order: torch.Tensor,  # M x J
-            sequence: torch.Tensor,  # M x E x T,
+            order: T,  # M x J
+            sequence: T,  # M x E x T,
             factor_samples: int,
-            character_idx: torch.Tensor | None = None,  # M
+            character_idx: T | None = None,  # M
             factor_processes_method: str = "posterior",
             aggregation_method: str = "product",
             return_cumulative: bool = False,
@@ -124,8 +129,8 @@ class BFFMPredict:
 
     def log_likelihood(
             self,
-            order: torch.Tensor,  # M x J
-            sequence: torch.Tensor,  # M x E x T,
+            order: T,  # M x J
+            sequence: T,  # M x E x T,
             factor_samples: int,
             factor_processes_method: str = "posterior",
     ):
@@ -145,7 +150,7 @@ class BFFMPredict:
             stimulus_order=order_repeated,
             target_stimulus=target_repeated,
             sequences=sequence_repeated,
-            scaling_activation="exp", # TODO: this is hard coded
+            **self.settings,
             **self.prior,
             **self.dimensions,
         )
@@ -155,22 +160,7 @@ class BFFMPredict:
         for sample_idx in range(N):
             print(f"Sample {sample_idx+1}/{N}")
             # get global variables
-            variables = {
-                "loadings": self.variables["loadings"][sample_idx, :, :],
-                "observation_variance": self.variables["observation_variance"][sample_idx, :],
-                "smgp_factors": {
-                    "nontarget_process": self.variables["smgp_factors.nontarget_process"][sample_idx, :, :],
-                    "target_process": self.variables["smgp_factors.target_process"][sample_idx, :, :],
-                    "mixing_process": self.variables["smgp_factors.target_process"][sample_idx, :, :],
-                },
-                "smgp_scaling": {
-                    "nontarget_process": self.variables["smgp_scaling.nontarget_process"][sample_idx, :, :],
-                    "target_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :],
-                    "mixing_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :],
-                }
-            }
-            bffmodel.set(**variables)
-            bffmodel.generate_local_variables()
+            self.update_model(bffmodel, sample_idx)
 
             if factor_processes_method == "posterior":
                 llk_idx = torch.zeros(M*L, B)
@@ -221,8 +211,70 @@ class BFFMPredict:
             llk[:, :, sample_idx] = llk_idx.reshape(M, L)
         return llk  # M x L x N
 
-    def one_hot_to_combination_id(self, one_hot: torch.Tensor):
+    def update_model(self, bffmodel, sample_idx):
+        variables = {
+            "loadings": self.variables["loadings"][sample_idx, :, :],
+            "observation_variance": self.variables["observation_variance"][sample_idx, :],
+            "smgp_factors": {
+                "nontarget_process": self.variables["smgp_factors.nontarget_process"][sample_idx, :, :],
+                "target_process": self.variables["smgp_factors.target_process"][sample_idx, :, :],
+                "mixing_process": self.variables["smgp_factors.mixing_process"][sample_idx, :, :],
+            },
+            "smgp_scaling": {
+                "nontarget_process": self.variables["smgp_scaling.nontarget_process"][sample_idx, :, :],
+                "target_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :],
+                "mixing_process": self.variables["smgp_scaling.mixing_process"][sample_idx, :, :],
+            }
+        }
+        bffmodel.set(**variables)
+        bffmodel.generate_local_variables()
+
+    def one_hot_to_combination_id(self, one_hot: T):
         # one_hot should be ... x n_combinations
         ips = torch.einsum("...i,ji->...j", one_hot.double(), self.combinations.double())
         idx = torch.argmax(ips, -1)
         return idx
+
+    def posterior_checks(
+            self,
+            order: T,  # M x J
+            target: T,  # M x J
+            sequences: T,  # M x E x T
+            **statistics: dict[str: Callable[[BFFModel], float]]
+    ):
+        bffmodel = BFFModel(
+            stimulus_order=order,
+            target_stimulus=target,
+            sequences=sequences,
+            **self.settings,
+            **self.prior,
+            **self.dimensions,
+        )
+
+        observed = {sname: [] for sname in statistics.keys()}
+        sampled = {sname: [] for sname in statistics.keys()}
+
+        for sample_idx in range(self.n_samples):
+            self.update_model(bffmodel, sample_idx)
+
+            # observed
+            bffmodel.set(observations=sequences)
+
+            # bffmodel.generate_local_variables()
+            bffmodel.variables["factor_processes"].data = \
+                bffmodel.variables["factor_processes"].posterior_mean
+            # bffmodel.variables["factor_processes"].sample()
+            # bffmodel.variables["factor_processes"].data = \
+            #     bffmodel.variables["mean_factor_processes"].data
+
+            for sname, sfunc in statistics.items():
+                observed[sname].append(sfunc(bffmodel))
+
+            # sampled
+            bffmodel.generate_local_variables()
+            bffmodel.variables["observations"].generate()
+            # bffmodel.variables["factor_processes"].sample()
+            for sname, sfunc in statistics.items():
+                sampled[sname].append(sfunc(bffmodel))
+
+        return observed, sampled
