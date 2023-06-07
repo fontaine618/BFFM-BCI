@@ -63,7 +63,11 @@ def _identify_sequences_and_stimuli(states: dict, window: float, sampling_rate: 
     stimulus_data["sequence_end"] = ((stimulus_data["src"].cumsum() % 78) == 0).astype(int)
     stimulus_data["sequence_begin"] = stimulus_data["sequence_end"].shift(-11).replace(np.nan, 0).astype(int)
     stimulus_data["sequence"] = stimulus_data["sequence_begin"].cumsum().astype(int)
-
+    stimulus_data["active"] = (stimulus_data["sequence_begin"] - \
+                              stimulus_data["sequence_end"]).cumsum() + \
+                            stimulus_data["sequence_end"]
+    stimulus_data = stimulus_data[stimulus_data["active"] == 1]
+    stimulus_data["repetition"] = stimulus_data.groupby("character")["sequence_begin"].cumsum()
     return stimulus_data
 
 
@@ -110,6 +114,10 @@ class KProtocol:
         # get sequences and stimuli
         stimulus_data = _identify_sequences_and_stimuli(states, window, sampling_rate)
 
+        # patch FRT target (I don't think FRT contains the intended characters?)
+        if type == "FRT":
+            pass
+
         # construct sequence tensor
         seq_ids = stimulus_data["sequence"].unique()
         begin = [stimulus_data["begin"][
@@ -152,6 +160,7 @@ class KProtocol:
         total_length = sts_interval * 11 + stimulus_window
         sequence = sequence[:, :, :total_length]
 
+        # parameters
         self.session = session
         self.subject = subject
         self.type = type
@@ -160,14 +169,28 @@ class KProtocol:
         self.bandpass_window = bandpass_window
         self.bandpass_order = bandpass_order
         self.downsample = downsample
+        self.stimulus_to_stimulus_interval = sts_interval
+        self.stimulus_window = stimulus_window
+        self.design = design
+        # data
         self.sequence = sequence
         self.stimulus_order = stimulus
         self.target = target
         self.stimulus_data = stimulus_data
-        self.stimulus_to_stimulus_interval = sts_interval
-        self.stimulus_window = stimulus_window
-        self.design = design
         self.character_idx = character_idx - 1
-        # I'm not sure if this is correct, but this is what Tianwen used
+
+        # I'm not sure if this is correct, but this is what Tianwen used,
+        # and it looks fine when plotted
         self.channel_names = ['F3', 'Fz', 'F4', 'T7', 'C3', 'Cz', 'C4', 'T8',
                        'CP3', 'CP4', 'P3', 'Pz', 'P4', 'PO7', 'PO8', 'Oz']
+
+    def repetitions(self, reps: list[int]) -> "KProtocol":
+        seqs = self.stimulus_data.groupby("sequence").head(1).loc[:, ("sequence", "character", "repetition")]
+        keep = seqs["repetition"].isin(reps).values
+        tkeep = torch.BoolTensor(keep)
+        self.sequence = self.sequence[tkeep, :, :]
+        self.stimulus_order = self.stimulus_order[tkeep, :]
+        self.target = self.target[tkeep, :]
+        self.character_idx = self.character_idx[tkeep]
+        self.stimulus_data = self.stimulus_data[self.stimulus_data["repetition"].isin(reps)]
+        return self

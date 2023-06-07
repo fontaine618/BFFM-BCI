@@ -39,6 +39,8 @@ https://pubmed.ncbi.nlm.nih.gov/19174332/
 www.stat.columbia.edu/~gelman/research/published/A6n41.pdf
 
 [ ] Something is wrong with prediction
+    - The issue is that we need to iterate until some convergence before
+      we can predict; one step is really bad.
 
 Backlog
 =======

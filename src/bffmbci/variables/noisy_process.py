@@ -102,13 +102,17 @@ class NoisyProcesses(Variable):
 		return jac, self.observations.mean(factor_processes=z)
 
 	@property
-	def log_density(self):
+	def log_density_per_sequence(self):
 		chol = self.kernel.chol
 		mean = self._mean.data
 		value = self.data
 		dist = torch.distributions.multivariate_normal.MultivariateNormal(loc=mean, scale_tril=chol)
 		logp = dist.log_prob(value)
-		return logp.sum().item()
+		return logp.sum(1)
+
+	@property
+	def log_density(self):
+		return self.log_density_per_sequence.sum().item()
 
 	@staticmethod
 	def mean(factor_processes):

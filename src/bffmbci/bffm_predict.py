@@ -47,7 +47,7 @@ class BFFMPredict:
             nc = 1
             for i in self.dimensions["n_stimulus"]:
                 nc *= i
-            character_labels = [f"C{i+1}" for i in range(nc)]
+            character_labels = [f"C{i + 1}" for i in range(nc)]
         self.character_labels = character_labels
 
     @property
@@ -158,18 +158,18 @@ class BFFMPredict:
         # run through all posterior samples
         llk = torch.zeros(M, L, N)
         for sample_idx in range(N):
-            print(f"Sample {sample_idx+1}/{N}")
+            print(f"Sample {sample_idx + 1}/{N}")
             # get global variables
             self.update_model(bffmodel, sample_idx)
 
             if factor_processes_method == "posterior":
-                llk_idx = torch.zeros(M*L, B)
+                llk_idx = torch.zeros(M * L, B)
                 for b in range(B):
                     bffmodel.variables["factor_processes"].sample()
                     llk_idx[:, b] = bffmodel.variables["observations"].log_density_per_sequence
                 llk_idx = math.log(B) - torch.logsumexp(-llk_idx, 1)
             elif factor_processes_method == "prior":
-                llk_idx = torch.zeros(M*L, B)
+                llk_idx = torch.zeros(M * L, B)
                 for b in range(B):
                     bffmodel.variables["factor_processes"].generate()
                     llk_idx[:, b] = bffmodel.variables["observations"].log_density_per_sequence
@@ -182,19 +182,30 @@ class BFFMPredict:
                 bffmodel.variables["factor_processes"].data = \
                     bffmodel.variables["factor_processes"].posterior_mean
                 llk_idx = bffmodel.variables["observations"].log_density_per_sequence
+            elif factor_processes_method == "maximize":
+                prevllk = bffmodel.variables["observations"].log_density
+                for i in range(100):
+                    bffmodel.variables["factor_processes"].data = \
+                        bffmodel.variables["factor_processes"].posterior_mean
+                    newllk = bffmodel.variables["observations"].log_density
+                    print(f"Maximize {i}: {newllk}")
+                    if abs(newllk - prevllk) / abs(newllk) < 1e-8:
+                        break
+                    prevllk = newllk
+                llk_idx = bffmodel.variables["observations"].log_density_per_sequence
             elif factor_processes_method == "analytical":
-                llk_idx = torch.zeros(M*L)
+                llk_idx = torch.zeros(M * L)
                 x = bffmodel.variables["observations"].data  # (ML) x E x T
-                xi = bffmodel.variables["loading_processes"].data # (ML) x K x T
+                xi = bffmodel.variables["loading_processes"].data  # (ML) x K x T
                 zbar = bffmodel.variables["mean_factor_processes"].data  # (ML) x K x T
                 Sigma = bffmodel.variables["observation_variance"].data  # E
                 Theta = bffmodel.variables["loadings"].data  # E x K
                 Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
-                mean = torch.einsum("mkt, ek -> met", xi*zbar, Theta)  # (ML) x E x T
+                mean = torch.einsum("mkt, ek -> met", xi * zbar, Theta)  # (ML) x E x T
                 # TODO need to vectorize this, way too slow currently
-                for ml in range(M*L):
+                for ml in range(M * L):
                     if ml % 100 == 0:
-                        print(f"Sample {sample_idx+1}/{N}, sequence {ml+1}/{M*L}")
+                        print(f"Sample {sample_idx + 1}/{N}, sequence {ml + 1}/{M * L}")
                     mean_ml = mean[ml, :, :]  # E x T
                     mean_ml = mean_ml.flatten()  # blocks are per channel [T, ..., T]
                     torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
@@ -259,13 +270,17 @@ class BFFMPredict:
 
             # observed
             bffmodel.set(observations=sequences)
-
-            # bffmodel.generate_local_variables()
-            bffmodel.variables["factor_processes"].data = \
-                bffmodel.variables["factor_processes"].posterior_mean
-            # bffmodel.variables["factor_processes"].sample()
-            # bffmodel.variables["factor_processes"].data = \
-            #     bffmodel.variables["mean_factor_processes"].data
+            prevllk = bffmodel.variables["observations"].log_density + \
+                      bffmodel.variables["factor_processes"].log_density
+            for i in range(1000):
+                bffmodel.variables["factor_processes"].data = \
+                    bffmodel.variables["factor_processes"].posterior_mean
+                llk = bffmodel.variables["observations"].log_density + \
+                      bffmodel.variables["factor_processes"].log_density
+                print(f"{i:4d} {llk:.4f}")
+                if abs(llk - prevllk) / abs(llk) < 1e-8:
+                    break
+                prevllk = llk
 
             for sname, sfunc in statistics.items():
                 observed[sname].append(sfunc(bffmodel))
@@ -273,7 +288,18 @@ class BFFMPredict:
             # sampled
             bffmodel.generate_local_variables()
             bffmodel.variables["observations"].generate()
-            # bffmodel.variables["factor_processes"].sample()
+            prevllk = bffmodel.variables["observations"].log_density + \
+                      bffmodel.variables["factor_processes"].log_density
+            for i in range(1000):
+                bffmodel.variables["factor_processes"].data = \
+                    bffmodel.variables["factor_processes"].posterior_mean
+                llk = bffmodel.variables["observations"].log_density + \
+                      bffmodel.variables["factor_processes"].log_density
+                print(f"{i:4d} {llk:.4f}")
+                if abs(llk - prevllk) / abs(llk) < 1e-8:
+                    break
+                prevllk = llk
+
             for sname, sfunc in statistics.items():
                 sampled[sname].append(sfunc(bffmodel))
 
