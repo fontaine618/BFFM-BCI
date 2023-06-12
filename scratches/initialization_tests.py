@@ -1,7 +1,7 @@
 import torch
 import copy
 import pandas as pd
-from src.bffmbci.bffm import BFFModel
+from source.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 plt.style.use("seaborn-v0_8-whitegrid")
@@ -12,7 +12,7 @@ latent_dim = 3
 n_iter = 2000
 n_repetitions = 3
 
-dir = "./src/figures/initialization/"
+dir = "./source/figures/initialization/"
 
 orders = {
 	"All": {

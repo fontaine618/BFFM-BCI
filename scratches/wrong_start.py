@@ -1,7 +1,7 @@
 import torch
 import copy
 import pandas as pd
-from src.models.bffmbci.bffm import BFFModel
+from source.models.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 plt.style.use("seaborn-whitegrid")
@@ -12,7 +12,7 @@ latent_dim = 3
 n_iter = 1000
 sd = 0.01
 
-dir = "./src/figures/wrong_start_nonnegative/"
+dir = "./source/figures/wrong_start_nonnegative/"
 
 orders = {
 	"Observation variance": {

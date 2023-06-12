@@ -1,5 +1,5 @@
 import torch
-from src.models.bffmbci.bffm import BFFModel
+from source.models.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-whitegrid")
 
@@ -9,7 +9,7 @@ n_iter = 100
 latent_dim = 3
 k = 2
 xs = range(0, n_iter+1)
-dir = "./src/figures/nonnegative/"
+dir = "./source/figures/nonnegative/"
 
 order = None
 

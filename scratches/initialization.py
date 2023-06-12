@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import torch
 import pandas as pd
 import numpy as np
-from src.bffmbci.bffm import BFFModel
-from src.bffmbci.bffm_init import bffm_initializer
+from source.bffmbci.bffm import BFFModel
+from source.bffmbci.bffm_init import bffm_initializer
 
 plt.style.use("seaborn-v0_8-whitegrid")
 pd.set_option('display.max_rows', 500)
@@ -39,7 +39,7 @@ stimulus_window = w
 stimulus_to_stimulus_interval = d
 latent_dim = K
 
-from src.initialization.wfa import WFA
+from source.initialization.wfa import WFA
 
 
 self = bffm_initializer(
@@ -207,7 +207,7 @@ z = torch.randn((N, K)) * w.reshape((-1, 1)).sqrt()
 X = z @ Theta.T + torch.randn((N, p)) * sig2.sqrt()
 
 
-from src.initialization.wfa import WFA
+from source.initialization.wfa import WFA
 self = WFA(K)
 self.fit(X, w)
 Theta1 = self._loadings

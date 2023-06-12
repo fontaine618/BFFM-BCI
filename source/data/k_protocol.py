@@ -54,13 +54,13 @@ def _identify_sequences_and_stimuli(states: dict, window: float, sampling_rate: 
         "begin": stimulus_begin,
         "end": stimulus_end,
         "character": stimulus_sequence,
-        "src": stimulus_code,
+        "source": stimulus_code,
         "type": stimulus_type,
         "length": stimulus_end - stimulus_begin,
     }).reset_index(drop=True)
     # identify repetitions
     stimulus_data["new_character"] = stimulus_data["character"].shift(1) != stimulus_data["character"]
-    stimulus_data["sequence_end"] = ((stimulus_data["src"].cumsum() % 78) == 0).astype(int)
+    stimulus_data["sequence_end"] = ((stimulus_data["source"].cumsum() % 78) == 0).astype(int)
     stimulus_data["sequence_begin"] = stimulus_data["sequence_end"].shift(-11).replace(np.nan, 0).astype(int)
     stimulus_data["sequence"] = stimulus_data["sequence_begin"].cumsum().astype(int)
     stimulus_data["active"] = (stimulus_data["sequence_begin"] - \
@@ -141,7 +141,7 @@ class KProtocol:
         for i, seq_id in enumerate(seq_ids):
             which = stimulus_data["sequence"] == seq_id
             # this is the "source", i.e., the row/col identifier
-            order = stimulus_data["src"].loc[which].values.astype(int)
+            order = stimulus_data["source"].loc[which].values.astype(int)
             # we rather need the reverse: when a row/column is presented
             inv_order = order.argsort()
             stimulus[i, :] = torch.tensor(inv_order)

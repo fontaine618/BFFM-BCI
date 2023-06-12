@@ -1,8 +1,8 @@
 import torch
 import math
 import pandas as pd
-from src.bffmbci.bffm import BFFModel
-from src.results_old.mcmc_results import MCMCResults
+from source.bffmbci.bffm import BFFModel
+from source.results_old.mcmc_results import MCMCResults
 import matplotlib.pyplot as plt
 from torch.autograd.functional import jacobian, hessian
 plt.style.use("seaborn-v0_8-whitegrid")
@@ -214,7 +214,7 @@ for i in range(n_iter):
 		metrics[i] = results.metrics(true_values)
 		model.clear_history()
 
-dir = "./src/figures/metrics10k/"
+dir = "./source/figures/metrics10k/"
 
 for var in metrics[0].keys():
 	for metric in metrics[0][var].keys():
@@ -284,7 +284,7 @@ for iter in range(n_iter):
 		print(iter)
 
 import torch
-from src.initialization.wfa import WFA
+from source.initialization.wfa import WFA
 torch.manual_seed(0)
 N = 10000
 K, p = 3, 7

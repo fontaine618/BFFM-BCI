@@ -1,5 +1,5 @@
 import torch
-from src.bffmbci.bffm import BFFModel
+from source.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-v0_8-whitegrid")
 

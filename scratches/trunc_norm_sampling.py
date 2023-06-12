@@ -1,5 +1,5 @@
 import torch
-from src.bffmbci.utils.truncated_gaussian import \
+from source.bffmbci.utils.truncated_gaussian import \
     _truncated_standard_normal_rv
 import matplotlib.pyplot as plt
 import cProfile
@@ -33,7 +33,7 @@ cProfile.run('[_truncated_standard_normal_rv_exponential_rejection(a, b) for _ i
 
 # MVT
 import torch
-from src.bffmbci.utils.truncated_gaussian import TruncatedMultivariateGaussian
+from source.bffmbci.utils.truncated_gaussian import TruncatedMultivariateGaussian
 from matplotlib import pyplot as plt
 from torch.distributions import MultivariateNormal
 

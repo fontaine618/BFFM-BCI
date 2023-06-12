@@ -3,7 +3,7 @@
 # singularity of precision matrices
 
 import torch
-from src.bffmbci.bffm import BFFModel
+from source.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-whitegrid")
 
@@ -56,7 +56,7 @@ fig.savefig(f"./code/figures/chains_smgp/{var}_k{k}_dim{latent_dim}.pdf")
 # singularity of precision matrices
 
 import torch
-from src.bffmbci.bffm import BFFModel
+from source.bffmbci.bffm import BFFModel
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-whitegrid")
 
