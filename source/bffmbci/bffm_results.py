@@ -4,7 +4,7 @@ import numpy as np
 import arviz as az
 import pickle
 from . import BFFMPredict
-from results.metrics import metrics
+from source.results.metrics import metrics
 import warnings
 from collections import defaultdict
 
