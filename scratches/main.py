@@ -4,7 +4,7 @@ import pandas as pd
 from src.bffmbci.bffm import BFFModel
 from src.results_old.mcmc_results import MCMCResults
 import matplotlib.pyplot as plt
-
+from torch.autograd.functional import jacobian, hessian
 plt.style.use("seaborn-v0_8-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
@@ -12,7 +12,7 @@ torch.set_default_tensor_type(torch.cuda.FloatTensor)
 latent_dim = 3
 n_iter = 100
 n_chains = 5
-
+batchsize = 10
 torch.manual_seed(0)
 model = BFFModel.generate_from_dimensions(
 	latent_dim=latent_dim,
@@ -21,13 +21,24 @@ model = BFFModel.generate_from_dimensions(
 	stimulus_window=55,
 	n_stimulus=(9, 2),
 	n_characters=17,
-	n_repetitions=5,
+	n_repetitions=15,
 	heterogeneities=3.,
 	shrinkage_factor=(2., 5.),
 	nonnegative_smgp=False,
 	scaling_activation="e",
 	kernel_gp_loading_processes=(0.99, 0.1, 1.)
 )
+
+self = model.variables["factor_processes"]
+self.generate()
+model.variables["observations"].generate()
+
+self.data = self.posterior_mean
+self.data = self.posterior_mean_by_conditionals
+print(self.log_density + model.variables["observations"].log_density)
+
+
+
 
 self = model.variables["smgp_factors"].mixing_process
 

@@ -1,30 +1,10 @@
 To do
 =====
 
-[x] MCMCResults class
-  [x] Contains chain
-  [x] Output posterior mean dict (warmup, thinning)
-[x] Output results to MCMCResults
-[x] Implement metrics
-[x] Implement a function to output true values from generated data
-[x] Implement saving and loading results
-[x] Implement log-likelihood saving
-[x] Implement TG sampling on GPU <=== very important
-[x] Implement loading into arviz
-[x] Check new truncated Gaussian
-[x] Implement predictions
-[x] Check sign flip & ordering
-[x] Implement analytical marginalization & MAP
-[x] Experiment with number of training repetitions
-[x] Chain alignments
-[x] Align true values to current chain (or vice versa)
-[x] Implement a function to output true values from generated data
+[ ] Make maximize marginalization faster (batch? analytical formula?)
 [ ] Finish estimation metrics
 [ ] More Prediction metrics
-[x] Entropy
-[x] ESS
-
-
+[ ] BCI utility & another metric i don't recall
 [ ] Tuning:
     - smoothness parameter
     - K
@@ -38,9 +18,7 @@ To do
 https://pubmed.ncbi.nlm.nih.gov/19174332/
 www.stat.columbia.edu/~gelman/research/published/A6n41.pdf
 
-[ ] Something is wrong with prediction
-    - The issue is that we need to iterate until some convergence before
-      we can predict; one step is really bad.
+
 
 Backlog
 =======

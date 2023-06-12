@@ -3,6 +3,7 @@ import torch.linalg
 from .variable import Variable
 from ..utils import Kernel
 from torch.distributions.multivariate_normal import MultivariateNormal
+from torch.autograd.functional import jacobian, hessian
 
 
 class NoisyProcesses(Variable):
@@ -36,7 +37,7 @@ class NoisyProcesses(Variable):
 		self._set_value(value)
 
 	@property
-	def posterior_mean(self):
+	def conditional_posterior_mean(self):
 		N, K, T = self.shape
 		value = self.data
 		for k in range(K):
@@ -52,6 +53,79 @@ class NoisyProcesses(Variable):
 			m = torch.einsum("ntu, nt -> nu", c, mtp)
 			value[:, k, :] = m
 		return value
+
+	def posterior_mean_batched(self, batchsize: int = 10):
+		# FIXME: this doesnt work for now
+		oldvalue = self.data.clone().detach()
+		newvalue = self.data.clone().detach()
+		N, K, T = self.shape
+		nbatches = N // batchsize
+		if N % batchsize > 0:
+			nbatches += 1
+		for i in range(nbatches):
+			which = slice(i * batchsize, min((i + 1) * batchsize, N))
+			n = which.stop - which.start
+			value = torch.nn.Parameter(self.data[which, ...].reshape(n, -1), requires_grad=True)
+			def f(z):
+				self.data[which, ...] = z.reshape(n, K, T)
+				return self.log_density_per_sequence[which].sum() + \
+					  self.observations.log_density_per_sequence[which].sum()
+			def grad(z):
+				return jacobian(f, z, create_graph=True, strategy="reverse-mode", vectorize=True).sum(0)
+
+			g = jacobian(f, value, strategy="reverse-mode", vectorize=True)
+			H = jacobian(grad, value, strategy="reverse-mode", vectorize=False).permute(1, 0, 2)
+
+			newvalue[which, ...] = (value - torch.linalg.solve(H, g)).reshape(n, K, T)
+
+			print(f"{i}/{nbatches} ({n}/{N}): {f(value).item()}")
+
+		self.data = oldvalue
+		return newvalue.detach()
+
+
+
+	@property
+	def posterior_mean(self):
+
+		oldvalue = self.data.clone().detach()
+		N, K, T = self.shape
+		value = torch.nn.Parameter(self.data.reshape(N, -1), requires_grad=True)
+		def f(z):
+			self.data = z.reshape(N, K, T)
+			return self.log_density_per_sequence.sum() + \
+				  self.observations.log_density_per_sequence.sum()
+		def grad(z):
+			return jacobian(f, z, create_graph=True, strategy="reverse-mode", vectorize=False).sum(0)
+
+		g = jacobian(f, value, strategy="reverse-mode", vectorize=True)
+		H = jacobian(grad, value, strategy="reverse-mode", vectorize=False).permute(1, 0, 2)
+
+		value = value - torch.linalg.solve(H, g)
+
+		self.data = oldvalue
+		return value.reshape(self.shape).detach()
+
+
+
+	@property
+	def posterior_mean_by_conditionals(self):
+
+		oldvalue = self.data.clone().detach()
+
+		prevllk = self.log_density + self.observations.log_density
+		for i in range(500):
+			self.data = self.conditional_posterior_mean
+			llk = self.log_density + self.observations.log_density
+			print(f"{i}: {llk}")
+			if abs(prevllk - llk) / abs(llk) < 1e-7:
+				break
+			prevllk = llk
+
+		postmean = self.data.clone().detach()
+		self.data = oldvalue
+		return postmean
+
 
 	def sample(self, store=False):
 		N, K, T = self.shape
