@@ -142,7 +142,7 @@ class KProtocol:
         max_length = np.max(length) + d - 1
         sequence = torch.zeros((len(seq_ids), filtered.shape[1], max_length))
         for i, (b, e) in enumerate(zip(begin, end)):
-            sequence[i, :, :(e-b+d-1)] = torch.tensor(filtered[b:(e+d-1), :]).T
+            sequence[i, :, :(e-b+d-1)] = filtered[b:(e+d-1), :].T
 
         # construct order and target tensor
         target = torch.zeros(len(seq_ids), 12, dtype=int)
@@ -198,7 +198,7 @@ class KProtocol:
         max_length = stimulus_window
         stimulus = torch.zeros((len(self.stimulus_data), max_length*d, self.filtered.shape[1]))
         for i, (b, e) in enumerate(zip(self.stimulus_data["begin"], self.stimulus_data["end"])):
-            stimulus[i, :max_length, :] = torch.tensor(self.filtered[b:(b+max_length), :])
+            stimulus[i, :max_length, :] = self.filtered[b:(b+max_length), :]
 
         # downsample
         stimulus = stimulus[:, ::downsample, :]
