@@ -75,9 +75,7 @@ class BFFMPredict:
             sequence: T,  # M x E x T,
             factor_samples: int,
             character_idx: T | None = None,  # M
-            factor_processes_method: str = "posterior",
-            aggregation_method: str = "product",
-            return_cumulative: bool = False,
+            factor_processes_method: str = "analytic"
     ):
         # first step is always to get log-likelihood for all sequences
         # all combinations and all posterior samples
@@ -89,6 +87,7 @@ class BFFMPredict:
         )
         if character_idx is None:
             llk_long = llk.unsqueeze(1)  # M x 1 x L x N
+            chars = None
         else:
             character_idx = character_idx.flatten()
             chars = character_idx.unique()
@@ -98,34 +97,57 @@ class BFFMPredict:
                 idx = character_idx == char
                 llk_long[i, :sum(idx), ...] = llk[idx, ...]
             # should now be nc x nr x L x N
-        # Aggregation switch
-        if aggregation_method == "product":
-            # get log prob for each sequence
-            log_prob = torch.logsumexp(llk_long, dim=3) - math.log(self.n_samples)
-            # get log prob for each character (this is the product)
-            log_prob = log_prob.cumsum(1)  # nc x nr x L
-            # map to probabilities
-            log_prob = log_prob - torch.logsumexp(log_prob, dim=2, keepdim=True)
-        elif aggregation_method == "integral":
-            # sum over repetitions
-            log_prob = llk_long.cumsum(1)  # nc x nr x L x N
-            # get log prob for each character
-            log_prob = torch.logsumexp(log_prob, dim=3) - math.log(self.n_samples)
-            # map to probabilities
-            log_prob = log_prob - torch.logsumexp(log_prob, dim=2, keepdim=True)
-        else:
-            raise ValueError(f"Unknown aggregation method {aggregation_method}")
+        return llk_long, chars
 
-        # get predicted class
+    @staticmethod
+    def aggregate(
+            llk_long, # nc x nr x L x N
+            sample_mean: str = "harmonic",
+            which_first: str = "sample",
+    ) -> T:
+        """
+        Aggregates log-likelihoods over sequences and samples.
+        :param llk_long: nc x nr x L x N
+        :param sequence_mean: arithmetic, geometric, harmonic
+        :param sample_mean: arithmetic, geometric, harmonic
+        :param which_first: sequence, sample
+        :return: nc x nr x L
+        """
+        if which_first == "sequence":
+            log_prob = torch.cumsum(llk_long, dim=1)
+            if sample_mean == "arithmetic":
+                log_prob = torch.logsumexp(log_prob, dim=3) - math.log(llk_long.shape[3])
+            elif sample_mean == "geometric":
+                log_prob = torch.mean(log_prob, dim=3)
+            elif sample_mean == "harmonic":
+                log_prob = -torch.logsumexp(-log_prob, dim=3) + math.log(llk_long.shape[3])
+            else:
+                raise ValueError(f"Unknown sample_mean {sample_mean}")
+        elif which_first == "sample":
+            if sample_mean == "arithmetic":
+                log_prob = torch.logsumexp(llk_long, dim=3) - math.log(llk_long.shape[3])
+            elif sample_mean == "geometric":
+                log_prob = torch.mean(llk_long, dim=3)
+            elif sample_mean == "harmonic":
+                log_prob = -torch.logsumexp(-llk_long, dim=3) + math.log(llk_long.shape[3])
+            else:
+                raise ValueError(f"Unknown sample_mean {sample_mean}")
+            log_prob = torch.cumsum(log_prob, dim=1)
+        else:
+            raise ValueError(f"Unknown which_first {which_first}")
+        return log_prob - torch.logsumexp(log_prob, dim=2, keepdim=True)
+
+    def get_predictions(
+            self,
+            log_prob: T,
+            return_cumulative: bool = True,
+    ) -> T:
         wide_pred = log_prob.argmax(2)
         wide_pred_one_hot = self.combinations[wide_pred, :]
-        if character_idx is None:
-            return log_prob[:, 0, :], wide_pred_one_hot[:, 0, :]
+        if return_cumulative:
+            return wide_pred_one_hot
         else:
-            if return_cumulative:
-                return log_prob, wide_pred_one_hot, chars
-            else:
-                return log_prob[:, -1, :], wide_pred_one_hot[:, -1, :], chars
+            return wide_pred_one_hot[:, -1, :]
 
     def log_likelihood(
             self,
@@ -202,21 +224,41 @@ class BFFMPredict:
                 Theta = bffmodel.variables["loadings"].data  # E x K
                 Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
                 mean = torch.einsum("mkt, ek -> met", xi * zbar, Theta)  # (ML) x E x T
-                # TODO need to vectorize this, way too slow currently
-                for ml in range(M * L):
-                    if ml % 100 == 0:
-                        print(f"Sample {sample_idx + 1}/{N}, sequence {ml + 1}/{M * L}")
-                    mean_ml = mean[ml, :, :]  # E x T
-                    mean_ml = mean_ml.flatten()  # blocks are per channel [T, ..., T]
-                    torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
+                # # TODO need to vectorize this, way too slow currently
+                # for ml in range(M * L):
+                #     if ml % 100 == 0:
+                #         print(f"Sample {sample_idx + 1}/{N}, sequence {ml + 1}/{M * L}")
+                #     mean_ml = mean[ml, :, :]  # E x T
+                #     mean_ml = mean_ml.flatten()  # blocks are per channel [T, ..., T]
+                #     torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
+                #     cov = torch.einsum(
+                #         "ek, fk, kt, ts, ks-> efts",
+                #         Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
+                #     )
+                #     cov = cov.permute(0, 2, 1, 3).flatten(2, 3).flatten(0, 1)
+                #     cov = 0.5 * (cov + cov.T)
+                #     cov = cov + torch.kron(torch.diag(Sigma), torch.eye(T))
+                #     dist = torch.distributions.MultivariateNormal(mean_ml, cov)
+                #     llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten())
+                batch_size = 25
+                n_batches = M * L // batch_size
+                for batch_idx in range(n_batches):
+                    ml = torch.arange(batch_idx * batch_size, min((batch_idx + 1) * batch_size, M*L))
+                    print(f"Sample {sample_idx + 1}/{N}, batch {batch_idx + 1}/{n_batches}"
+                          f" ({batch_size} sequences per batch)")
+                    mean_ml = mean[ml, :, :]  # ... x E x T
+                    mean_ml = mean_ml.flatten(1)  # blocks are per channel [T, ..., T]
+                    # wait, why am I not using this ??
+                    # torch.einsum("ek, fk, bkt -> beft", Theta, Theta, xi[ml, :, :].pow(2))
                     cov = torch.einsum(
-                        "ek, fk, kt, ts, ks-> efts",
+                        "ek, fk, bkt, ts, bks-> befts",
                         Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
                     )
-                    cov = cov.permute(0, 2, 1, 3).flatten(2, 3).flatten(0, 1)
-                    cov = cov + torch.kron(torch.diag(Sigma), torch.eye(T))
+                    cov = cov.permute(0, 1, 3, 2, 4).flatten(3, 4).flatten(1, 2)
+                    cov = 0.5 * (cov + cov.transpose(1, 2))
+                    cov = cov + torch.kron(torch.diag(Sigma), torch.eye(T)).unsqueeze(0)
                     dist = torch.distributions.MultivariateNormal(mean_ml, cov)
-                    llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten())
+                    llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten(1))
             else:
                 raise ValueError(f"Unknown factor_processes_method {factor_processes_method}")
             llk[:, :, sample_idx] = llk_idx.reshape(M, L)

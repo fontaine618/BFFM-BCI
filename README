@@ -1,6 +1,10 @@
 To do
 =====
 
+[ ] try to improve analytical
+[ ] tuning
+[ ] posterior samples with prediction
+
 [ ] Make maximize marginalization faster (batch? analytical formula?)
 [ ] Finish estimation metrics
 [ ] More Prediction metrics

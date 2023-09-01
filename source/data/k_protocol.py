@@ -94,6 +94,7 @@ class KProtocol:
         characters = [x[0][0] for x in parameters["TargetDefinitions"]["Value"]]
         rows = np.arange(1, 7).repeat(6)
         columns = np.tile(np.arange(1, 7), 6)
+        d = downsample
 
         design = pd.DataFrame({
             "character": characters,
@@ -109,7 +110,16 @@ class KProtocol:
             btype="bandpass",
             fs=sampling_rate
         )
-        filtered = scipy.signal.lfilter(*bandpass, signal.T).T
+        filtered = torch.Tensor(scipy.signal.lfilter(*bandpass, signal.T).T)
+
+        # MA smoothing
+        smoothed = torch.nn.functional.avg_pool1d(
+            filtered.T,
+            downsample-1, 1,
+            padding=(downsample-2)//2, count_include_pad=False
+        ).T
+        self.filtered = filtered
+        self.smoothed = smoothed
 
         # get sequences and stimuli
         stimulus_data = _identify_sequences_and_stimuli(states, window, sampling_rate)
@@ -129,10 +139,10 @@ class KProtocol:
             (stimulus_data["sequence"] == seq_id)
         ].values[0] for seq_id in seq_ids]
         length = [end[i] - begin[i] for i in range(len(begin))]
-        max_length = np.max(length)
+        max_length = np.max(length) + d - 1
         sequence = torch.zeros((len(seq_ids), filtered.shape[1], max_length))
         for i, (b, e) in enumerate(zip(begin, end)):
-            sequence[i, :, :e - b] = torch.tensor(filtered[b:e, :]).T
+            sequence[i, :, :(e-b+d-1)] = torch.tensor(filtered[b:(e+d-1), :]).T
 
         # construct order and target tensor
         target = torch.zeros(len(seq_ids), 12, dtype=int)
@@ -172,6 +182,11 @@ class KProtocol:
         self.stimulus_to_stimulus_interval = sts_interval
         self.stimulus_window = stimulus_window
         self.design = design
+
+        # I'm not sure if this is correct, but this is what Tianwen used,
+        # and it looks fine when plotted
+        self.channel_names = ['F3', 'Fz', 'F4', 'T7', 'C3', 'Cz', 'C4', 'T8',
+                       'CP3', 'CP4', 'P3', 'Pz', 'P4', 'PO7', 'PO8', 'Oz']
         # data
         self.sequence = sequence
         self.stimulus_order = stimulus
@@ -179,10 +194,15 @@ class KProtocol:
         self.stimulus_data = stimulus_data
         self.character_idx = character_idx - 1
 
-        # I'm not sure if this is correct, but this is what Tianwen used,
-        # and it looks fine when plotted
-        self.channel_names = ['F3', 'Fz', 'F4', 'T7', 'C3', 'Cz', 'C4', 'T8',
-                       'CP3', 'CP4', 'P3', 'Pz', 'P4', 'PO7', 'PO8', 'Oz']
+        # prepare stimulus format
+        max_length = stimulus_window
+        stimulus = torch.zeros((len(self.stimulus_data), max_length*d, self.filtered.shape[1]))
+        for i, (b, e) in enumerate(zip(self.stimulus_data["begin"], self.stimulus_data["end"])):
+            stimulus[i, :max_length, :] = torch.tensor(self.filtered[b:(b+max_length), :])
+
+        # downsample
+        stimulus = stimulus[:, ::downsample, :]
+        self.stimulus = stimulus
 
     def repetitions(self, reps: list[int]) -> "KProtocol":
         seqs = self.stimulus_data.groupby("sequence").head(1).loc[:, ("sequence", "character", "repetition")]
