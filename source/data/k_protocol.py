@@ -187,6 +187,15 @@ class KProtocol:
         # and it looks fine when plotted
         self.channel_names = ['F3', 'Fz', 'F4', 'T7', 'C3', 'Cz', 'C4', 'T8',
                        'CP3', 'CP4', 'P3', 'Pz', 'P4', 'PO7', 'PO8', 'Oz']
+        self.keyboard = np.array([
+            ["A", "B", "C", "D", "E", "F"],
+            ["G", "H", "I", "J", "K", "L"],
+            ["M", "N", "O", "P", "Q", "R"],
+            ["S", "T", "U", "V", "W", "X"],
+            ["Y", "Z", "1", "2", "3", "4"],
+            ["5", "6", "7", "8", "9", "_"]
+        ])
+
         # data
         self.sequence = sequence
         self.stimulus_order = stimulus
@@ -198,7 +207,7 @@ class KProtocol:
         max_length = stimulus_window
         stimulus = torch.zeros((len(self.stimulus_data), max_length*d, self.filtered.shape[1]))
         for i, (b, e) in enumerate(zip(self.stimulus_data["begin"], self.stimulus_data["end"])):
-            stimulus[i, :max_length, :] = self.filtered[b:(b+max_length), :]
+            stimulus[i, :(max_length*d), :] = self.filtered[b:(b+max_length*d), :]
 
         # downsample
         stimulus = stimulus[:, ::downsample, :]

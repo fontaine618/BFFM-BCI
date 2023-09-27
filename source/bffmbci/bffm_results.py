@@ -349,17 +349,9 @@ class BFFMResults:
 
 def add_transformed_variables(chains):
     if "loadings" in chains:
-        L = chains["loadings"]  # (..., E, K)
-        chains["loadings.inner_products"] = L @ L.transpose(-1, -2) # (..., E, E)
-    if "loadings" in chains:
         L = chains["loadings"].transpose(-1, -2)  # (..., K, E)
         chains["loadings.rank_one"] = L.unsqueeze(-1) @ L.unsqueeze(-2)  # (..., K, E, E)
-    if "loadings" in chains:
-        L = chains["loadings"]  # (..., E, K)
-        LtL = L.transpose(-1, -2) @ L  # (..., K, K)
-        LtLinv = torch.linalg.inv(LtL)  # (..., K, K)
-        chains["loadings.projection"] = L @ LtLinv @ L.transpose(-1, -2)  # (..., E, E)
-    if "loadings" in chains:
+
         L = chains["loadings"]
         Lnorm = torch.linalg.norm(L, dim=-2, keepdim=True)
         chains["loadings.norm_one"] = L / Lnorm
@@ -376,9 +368,7 @@ def add_transformed_variables(chains):
             chains["smgp_factors.nontarget_process"] + \
             chains["smgp_factors.mixing_process"] * \
             chains["smgp_factors.target_process"]
-    if "smgp_factors.nontarget_process" in chains and \
-            "smgp_factors.target_process" in chains and \
-            "smgp_factors.mixing_process" in chains:
+
         chains["smgp_factors.difference_process"] = \
             chains["smgp_factors.target_signal"] - \
             chains["smgp_factors.nontarget_process"]
@@ -391,58 +381,45 @@ def add_transformed_variables(chains):
             chains["smgp_scaling.nontarget_process"] + \
             chains["smgp_scaling.mixing_process"] * \
             chains["smgp_scaling.target_process"]
-    if "smgp_scaling.nontarget_process" in chains and \
-            "smgp_scaling.target_process" in chains and \
-            "smgp_scaling.mixing_process" in chains:
+
         chains["smgp_scaling.difference_process"] = \
             chains["smgp_scaling.target_signal"] - \
             chains["smgp_scaling.nontarget_process"]
-    # Scaling process global: scaled by shrinkage
-    # TODO: check that we might be better with *?
-    if "smgp_scaling.nontarget_process" in chains and \
-            "shrinkage_factor" in chains:
-        s = chains["shrinkage_factor"].unsqueeze(-1)
-        chains["smgp_scaling.nontarget_process_times_shrinkage"] = \
-            chains["smgp_scaling.nontarget_process"] / s.sqrt()
-    if "smgp_scaling.target_process" in chains and \
-            "shrinkage_factor" in chains:
-        s = chains["shrinkage_factor"].unsqueeze(-1)
-        chains["smgp_scaling.target_process_times_shrinkage"] = \
-            chains["smgp_scaling.target_process"] / s.sqrt()
-    if "smgp_scaling.target_signal" in chains and \
-            "shrinkage_factor" in chains:
-        s = chains["shrinkage_factor"].unsqueeze(-1)
-        chains["smgp_scaling.target_signal_times_shrinkage"] = \
-            chains["smgp_scaling.target_signal"] / s.sqrt()
-    if "smgp_scaling.difference_process" in chains and \
-            "shrinkage_factor" in chains:
-        s = chains["shrinkage_factor"].unsqueeze(-1)
-        chains["smgp_scaling.difference_process_times_shrinkage"] = \
-            chains["smgp_scaling.difference_process"] / s.sqrt()
-    # Scaling process global: center at 1 using geometric mean
-    if "smgp_scaling.nontarget_process" in chains:
-        center = chains["smgp_scaling.nontarget_process"].log().mean(-1, keepdim=True).exp()
-        chains["smgp_scaling.nontarget_process_centered"] = \
-            chains["smgp_scaling.nontarget_process"] / center
-    if "smgp_scaling.target_process" in chains:
-        center = chains["smgp_scaling.target_process"].log().mean(-1, keepdim=True).exp()
-        chains["smgp_scaling.target_process_centered"] = \
-            chains["smgp_scaling.target_process"] / center
-    if "smgp_scaling.target_signal" in chains:
-        center = chains["smgp_scaling.target_signal"].log().mean(-1, keepdim=True).exp()
-        chains["smgp_scaling.target_signal_centered"] = \
-            chains["smgp_scaling.target_signal"] / center
-    if "smgp_scaling.difference_process" in chains:
-        center = chains["smgp_scaling.difference_process"].mean(-1, keepdim=True)
-        chains["smgp_scaling.difference_process_centered"] = \
-            chains["smgp_scaling.difference_process"] - center
-    if "smgp_scaling.difference_process" in chains and \
-            "smgp_scaling.nontarget_process" in chains:
-        chains["smgp_scaling.target_multiplier_process"] = \
-            1 + chains["smgp_scaling.difference_process"] / \
-                chains["smgp_scaling.nontarget_process"]
-    if "smgp_scaling.nontarget_process" in chains and \
-        "loadings" in chains:
-        Lnorm = torch.linalg.norm(chains["loadings"], dim=-2, keepdim=False)
-        pnorm = chains["smgp_scaling.nontarget_process"].log().mean(-1, keepdim=False).exp()
-        chains["scaling_factor"] = (pnorm * Lnorm).pow(2.)
+    # Mean process (componentwise)
+    if "smgp_factors.nontarget_process" in chains and \
+            "smgp_scaling.nontarget_process":
+        chains["nontarget_mean_process.componentwise"] = \
+            chains["smgp_factors.nontarget_process"] * \
+            chains["smgp_scaling.nontarget_process"].exp()
+    if "smgp_factors.target_signal" in chains and \
+            "smgp_scaling.target_signal":
+        chains["target_mean_process.componentwise"] = \
+            chains["smgp_factors.target_signal"] * \
+            chains["smgp_scaling.target_signal"].exp()
+    if "target_mean_process.componentwise" in chains and \
+            "nontarget_mean_process.componentwise":
+        chains["difference_mean_process.componentwise"] = \
+            chains["target_mean_process.componentwise"] - \
+            chains["nontarget_mean_process.componentwise"]
+    # Mean process (channelwise)
+    if "nontarget_mean_process.componentwise" in chains and \
+            "loadings" in chains:
+        L = chains["loadings"]
+        P = chains["nontarget_mean_process.componentwise"]
+        chains["nontarget_mean_process.channelwise"] = \
+            torch.einsum("csek,cskt->cset", L, P)
+    if "target_mean_process.componentwise" in chains and \
+            "loadings" in chains:
+        L = chains["loadings"]
+        P = chains["target_mean_process.componentwise"]
+        chains["target_mean_process.channelwise"] = \
+            torch.einsum("csek,cskt->cset", L, P)
+    if "difference_mean_process.componentwise" in chains and \
+            "loadings" in chains:
+        L = chains["loadings"]
+        P = chains["difference_mean_process.componentwise"]
+        chains["difference_mean_process.channelwise"] = \
+            torch.einsum("csek,cskt->cset", L, P)
+
+
+

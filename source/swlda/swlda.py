@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from .stepwise import stepwisefit
 
@@ -100,4 +101,50 @@ def swlda(responses, type, sampling_rate, response_window, decimation_frequency,
     ] # remove anything past where we actually recorded data
 
     # make whichchannels 1-based
-    return whichchannels + 1, restored_weights
+    return whichchannels + 1, restored_weights, stats.intercept
+
+
+
+def swlda_predict(
+        weights,  # ExT
+        response,  # NxTxE
+        stimulus_data,  # df with N rows with source, character, repetition
+        keyboard  # 6x6
+):
+    # prediction from the paper
+    ip = np.einsum("nte, et -> n", response, weights)
+
+    stimulus_data["ip"] = ip
+    rowstim = stimulus_data.loc[stimulus_data["source"]<7]
+    colstim = stimulus_data.loc[stimulus_data["source"]>6]
+    rowpred = rowstim.sort_values(["ip"], ascending=False).groupby(["character", "repetition"]).head(1)
+    rowpred.sort_values(["character", "repetition"], inplace=True)
+    colpred = colstim.sort_values(["ip"], ascending=False).groupby(["character", "repetition"]).head(1)
+    colpred.sort_values(["character", "repetition"], inplace=True)
+
+    # merge
+    rowpred.set_index(["character", "repetition"], inplace=True)
+    rowpred = rowpred[["source"]]
+    rowpred.rename(columns={"source": "row"}, inplace=True)
+    colpred.set_index(["character", "repetition"], inplace=True)
+    colpred = colpred[["source"]]
+    colpred.rename(columns={"source": "col"}, inplace=True)
+    pred_df = rowpred.merge(colpred, on=["character", "repetition"], how="outer").reset_index()
+
+    # aggregate by voting
+    agg_pred_df = pred_df.groupby(["character"]).agg(lambda x: x.value_counts().index[0])
+
+    # cumulative
+    nreps = stimulus_data["repetition"].max()
+    df_list = []
+    for i in range(1, nreps + 1):
+        df = pred_df.loc[pred_df["repetition"] <= i].groupby(["character"]).agg(lambda x: x.value_counts().index[0])
+        df["repetition"] = i
+        df_list.append(df)
+    cum_pred_df = pd.concat(df_list).sort_values(["character", "repetition"]).reset_index()
+
+    # predicted characters
+    pred_df["char"] = keyboard[pred_df["row"]-1, pred_df["col"]-7]
+    agg_pred_df["char"] = keyboard[agg_pred_df["row"]-1, agg_pred_df["col"]-7]
+    cum_pred_df["char"] = keyboard[cum_pred_df["row"]-1, cum_pred_df["col"]-7]
+    return pred_df, agg_pred_df, cum_pred_df

@@ -75,7 +75,8 @@ class BFFMPredict:
             sequence: T,  # M x E x T,
             factor_samples: int,
             character_idx: T | None = None,  # M
-            factor_processes_method: str = "analytic"
+            factor_processes_method: str = "analytic",
+            drop_component: int | None = None,
     ):
         # first step is always to get log-likelihood for all sequences
         # all combinations and all posterior samples
@@ -84,6 +85,7 @@ class BFFMPredict:
             sequence=sequence,
             factor_samples=factor_samples,
             factor_processes_method=factor_processes_method,
+            drop_component=drop_component,
         )
         if character_idx is None:
             llk_long = llk.unsqueeze(1)  # M x 1 x L x N
@@ -155,6 +157,7 @@ class BFFMPredict:
             sequence: T,  # M x E x T,
             factor_samples: int,
             factor_processes_method: str = "maximize",
+            drop_component: int | None = None,
     ):
         N = self.n_samples
         M, E, T = sequence.shape
@@ -182,7 +185,7 @@ class BFFMPredict:
         for sample_idx in range(N):
             print(f"Sample {sample_idx + 1}/{N}")
             # get global variables
-            self.update_model(bffmodel, sample_idx)
+            self.update_model(bffmodel, sample_idx, drop_component)
 
             if factor_processes_method == "posterior":
                 llk_idx = torch.zeros(M * L, B)
@@ -264,9 +267,9 @@ class BFFMPredict:
             llk[:, :, sample_idx] = llk_idx.reshape(M, L)
         return llk  # M x L x N
 
-    def update_model(self, bffmodel, sample_idx):
+    def update_model(self, bffmodel, sample_idx, drop_component):
         variables = {
-            "loadings": self.variables["loadings"][sample_idx, :, :],
+            "loadings": self.variables["loadings"][sample_idx, :, :].clone().detach(),
             "observation_variance": self.variables["observation_variance"][sample_idx, :],
             "smgp_factors": {
                 "nontarget_process": self.variables["smgp_factors.nontarget_process"][sample_idx, :, :],
@@ -279,6 +282,9 @@ class BFFMPredict:
                 "mixing_process": self.variables["smgp_scaling.mixing_process"][sample_idx, :, :],
             }
         }
+        if drop_component is not None:
+            # only need to set loading to zero, since it multiplies everything else
+            variables["loadings"][:, drop_component] = 0.
         bffmodel.set(**variables)
         bffmodel.generate_local_variables()
 

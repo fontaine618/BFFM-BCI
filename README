@@ -1,19 +1,7 @@
 To do
 =====
 
-[ ] try to improve analytical
-[ ] tuning
-[ ] posterior samples with prediction
-
-[ ] Make maximize marginalization faster (batch? analytical formula?)
-[ ] Finish estimation metrics
-[ ] More Prediction metrics
 [ ] BCI utility & another metric i don't recall
-[ ] Tuning:
-    - smoothness parameter
-    - K
-[ ] ESS along the 50K
-[ ] Prediction, testing
 [ ] DIC or BF / TEST
 [ ] Posterior predictive check, bayesian p-value
      - check literature for important statistics
@@ -21,6 +9,10 @@ To do
  https://projecteuclid.org/journals/annals-of-statistics/volume-22/issue-3/Posterior-Predictive-p-Values/10.1214/aos/1176325622.full
 https://pubmed.ncbi.nlm.nih.gov/19174332/
 www.stat.columbia.edu/~gelman/research/published/A6n41.pdf
+
+[ ] pre-estimate smoothness to choose a parameter
+
+
 
 
 
@@ -34,4 +26,4 @@ Commands
 ssh simon@192.168.0.208
 scp <files> simon@simfont:/home/simon/Documents/BCI/experiments/test3/chains
 # get from GL
-scp -r simfont@greatlakes-xfer.arc-ts.umich.edu:./Documents/BCI/experiments/test5/results/analytical .
+scp simfont@greatlakes-xfer.arc-ts.umich.edu:./Documents/BCI/experiments/k114/chains/* ./experiments/k114/chains
