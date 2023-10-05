@@ -1,7 +1,7 @@
 from .variable import Variable, ObservedVariable
 from .observation_variance import ObservationVariance
 from .observations import GaussianObservations
-from .loadings import Loadings, Heterogeneities, ShrinkageFactor, IdentityLoadings
+from .loadings import Loadings, Heterogeneities, ShrinkageFactor, IdentityLoadings, SparseHetereogeneities
 from .sequence_data import SequenceData
 from .gaussian_process import GaussianProcess, TruncatedGaussianProcess01
 from .plate import Plate
