@@ -9,7 +9,7 @@ from .utils import Kernel
 from .variables import SequenceData, SMGP, Superposition, IndependentSMGP, NonnegativeSMGP
 from .variables import GaussianObservations
 from .variables import ObservationVariance
-from .variables import Loadings, Heterogeneities, ShrinkageFactor
+from .variables import Loadings, Heterogeneities, ShrinkageFactor, SparseHetereogeneities
 from .variables import NoisyProcesses
 from .bffm_init import bffm_initializer
 
@@ -30,6 +30,7 @@ class BFFModel:
 			independent_smgp: bool = False,
 			nonnegative_smgp: bool = False,
 			scaling_activation: str = "exp",
+			sparse: bool = False,
 			**kwargs
 	):
 		self._dimensions = {
@@ -51,7 +52,8 @@ class BFFModel:
 			target_stimulus=target_stimulus,
 			independent_smgp=independent_smgp,
 			nonnegative_smgp=nonnegative_smgp,
-			scaling_activation=scaling_activation
+			scaling_activation=scaling_activation,
+			sparse=sparse
 		)
 		self._sampling_order = [
 			"factor_processes",
@@ -83,11 +85,13 @@ class BFFModel:
 			target_stimulus: torch.Tensor,
 			independent_smgp: bool = False,
 			nonnegative_smgp: bool = False,
-			scaling_activation: str = "exp"
+			scaling_activation: str = "exp",
+			sparse: bool = False
 	):
 		self._settings["independent_smgp"] = independent_smgp
 		self._settings["nonnegative_smgp"] = nonnegative_smgp
 		self._settings["scaling_activation"] = scaling_activation
+		self._settings["sparse"] = sparse
 
 		parms = self.prior_parameters
 		dims = self._dimensions
@@ -99,10 +103,16 @@ class BFFModel:
 		)
 
 		# Loadings
-		heterogeneities = Heterogeneities(
-			dim=(dims["n_channels"], dims["latent_dim"]),
-			gamma=parms["heterogeneities"]
-		)
+		if sparse:
+			heterogeneities = SparseHetereogeneities(
+				dim=(dims["n_channels"], dims["latent_dim"]),
+				gamma=parms["heterogeneities"]
+			)
+		else:
+			heterogeneities = Heterogeneities(
+				dim=(dims["n_channels"], dims["latent_dim"]),
+				gamma=parms["heterogeneities"]
+			)
 		shrinkage_factor = ShrinkageFactor(
 			n_latent=dims["latent_dim"],
 			prior_parameters=parms["shrinkage_factor"]

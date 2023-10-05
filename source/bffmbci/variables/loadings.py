@@ -16,7 +16,11 @@ class Loadings(Variable):
 	the loading_times_factor_processes method
 
 	This variable has heterogeneities and shrinkage factors as parents:
-	theta_ek ~ N(0, h_ek * tau_k)
+	theta_ek ~ N(0, h_ek / tau_k)
+	h_ek ~ InvGamma(gamma/2, gamma/2)
+	tau_k = prod_j<=k delta_j
+	delta_1 ~ Gamma(a1, 1)
+	delta_j ~ Gamma(a2, 1)
 	- heterogeneities: of dimension [n_channels, n_latent], phi
 	- shrinkage_factor: of dimension [n_latent, ], tau
 	- observation_variance: of dimension [n_channels, ], sigma
@@ -94,6 +98,57 @@ class Heterogeneities(Variable):
 	def generate(self):
 		dist = InverseGamma(self._gamma/2, self._gamma/2)
 		self._set_value(dist.sample(self.shape))
+
+
+class SparseHetereogeneities(Variable):
+	r"""
+	The variance parameters for the loadings entries.
+
+	This variable is of dimension [n_channels, n_latent]
+
+	This has no parents, only a prior C+(0,1).
+
+	the only children in loadings, of dimension [n_channels, n_latent]
+
+	Sampling is done using auxiliary variables (Makalik and Schmidt 2015)
+	"""
+
+	_dim_names = ["n_channels", "latent_dim"]
+
+	def __init__(self, dim, gamma=1.):
+		self._gamma = gamma
+		self.loadings: Loadings = None
+		super().__init__(dim=dim, store=True, init=None)
+		self._nu = torch.ones(dim)
+
+	def sample(self, store=True):
+		# update value
+		a = 1.
+		b = 1./self._nu + self.loadings.squares_times_shrinkage/2.
+		data = torch.zeros(self.shape)
+		for e in range(self.shape[0]):
+			for k in range(self.shape[1]):
+				dist = InverseGamma(a, b[e, k])
+				data[e, k] = dist.sample()
+		self._set_value(data, store=store)
+		# update nu
+		dist = InverseGamma(1., 1./self.data)
+		self._nu = dist.sample()
+
+	def generate(self, **kwargs):
+		# generate nu
+		dist = InverseGamma(0.5, 1.)
+		self._nu = dist.sample(self.shape)
+		# generate data
+		a = 1./2.
+		b = 1./self._nu
+		data = torch.zeros(self.shape)
+		for e in range(self.shape[0]):
+			for k in range(self.shape[1]):
+				dist = InverseGamma(a, b[e, k])
+				data[e, k] = dist.sample()
+		self._set_value(data)
+
 
 
 class ShrinkageFactor(Variable):
