@@ -123,30 +123,25 @@ class SparseHetereogeneities(Variable):
 
 	def sample(self, store=True):
 		# update value
-		a = 1.
 		b = 1./self._nu + self.loadings.squares_times_shrinkage/2.
 		data = torch.zeros(self.shape)
 		for e in range(self.shape[0]):
 			for k in range(self.shape[1]):
-				dist = InverseGamma(a, b[e, k])
-				data[e, k] = dist.sample()
+				data[e, k] = InverseGamma(1., b[e, k]).sample()
+				self._nu[e, k] = InverseGamma(1., 1. + 1./data[e, k]).sample()
 		self._set_value(data, store=store)
-		# update nu
-		dist = InverseGamma(1., 1./self.data)
-		self._nu = dist.sample()
 
 	def generate(self, **kwargs):
 		# generate nu
 		dist = InverseGamma(0.5, 1.)
 		self._nu = dist.sample(self.shape)
 		# generate data
-		a = 1./2.
+		a = 0.5
 		b = 1./self._nu
 		data = torch.zeros(self.shape)
 		for e in range(self.shape[0]):
 			for k in range(self.shape[1]):
-				dist = InverseGamma(a, b[e, k])
-				data[e, k] = dist.sample()
+				data[e, k] = InverseGamma(a, b[e, k]).sample()
 		self._set_value(data)
 
 
