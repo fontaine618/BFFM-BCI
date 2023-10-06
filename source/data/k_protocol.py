@@ -78,7 +78,7 @@ def _patch_frt(filename, stimulus_data):
     row = row_col[:, 0]
     col = row_col[:, 1]
     n_chars = row.shape[0]
-    # need to drop the last one; for some reason the function above finds an extra one at the end
+    # need to drop the last ones; it seems the session may include an extra one sometimes
     stimulus_data = stimulus_data[stimulus_data["character"] < n_chars + 1]
     row = pd.DataFrame({
         "character": np.arange(1, n_chars + 1),
