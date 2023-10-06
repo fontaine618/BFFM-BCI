@@ -71,6 +71,34 @@ def _identify_sequences_and_stimuli(states: dict, window: float, sampling_rate: 
     return stimulus_data
 
 
+def _patch_frt(filename, stimulus_data):
+    # Data.DBIData.DBI_EXP_Info.Stimulus_Type
+    intended_text = scipy.io.loadmat(filename)["Data"][0][0][1][0][0][4][0][0]
+    row_col = intended_text[4]
+    row = row_col[:, 0]
+    col = row_col[:, 1]
+    n_chars = row.shape[0]
+    # need to drop the last one; for some reason the function above finds an extra one at the end
+    stimulus_data = stimulus_data[stimulus_data["character"] < n_chars + 1]
+    row = pd.DataFrame({
+        "character": np.arange(1, n_chars + 1),
+        "source": row,
+        "type_raw": 1
+    })
+    col = pd.DataFrame({
+        "character": np.arange(1, n_chars + 1),
+        "source": col,
+        "type_raw": 1
+    })
+    df = pd.concat([row, col])
+    # join df into stimulus_data on character and source
+    stimulus_data = pd.merge(stimulus_data, df, on=["character", "source"], how="left")
+    # now, type_raw has 1 or NaN, we need to replace NaN with 0 and then convert to int
+    stimulus_data["type"] = stimulus_data["type_raw"].replace(np.nan, 0).astype(int)
+    # drop type_raw
+    stimulus_data = stimulus_data.drop(columns=["type_raw"])
+    return stimulus_data
+
 class KProtocol:
 
     def __init__(
@@ -118,15 +146,13 @@ class KProtocol:
             downsample-1, 1,
             padding=(downsample-2)//2, count_include_pad=False
         ).T
-        self.filtered = filtered
-        self.smoothed = smoothed
 
         # get sequences and stimuli
         stimulus_data = _identify_sequences_and_stimuli(states, window, sampling_rate)
 
-        # patch FRT target (I don't think FRT contains the intended characters?)
+        # patch FRT target
         if type == "FRT":
-            pass
+            stimulus_data = _patch_frt(filename, stimulus_data)
 
         # construct sequence tensor
         seq_ids = stimulus_data["sequence"].unique()
@@ -170,6 +196,9 @@ class KProtocol:
         total_length = sts_interval * 11 + stimulus_window
         sequence = sequence[:, :, :total_length]
 
+        # data
+        self.filtered = filtered
+        self.smoothed = smoothed
         # parameters
         self.session = session
         self.subject = subject
@@ -193,7 +222,7 @@ class KProtocol:
             ["M", "N", "O", "P", "Q", "R"],
             ["S", "T", "U", "V", "W", "X"],
             ["Y", "Z", "1", "2", "3", "4"],
-            ["5", "6", "7", "8", "9", "_"]
+            ["5", "SPK", ".", "BS", "!", "_"]
         ])
 
         # data
