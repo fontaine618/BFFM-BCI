@@ -123,6 +123,7 @@ class SparseHetereogeneities(Variable):
 
 	def sample(self, store=True):
 		# update value
+		# FIXME: I think I can just pass the tensor to InvGamma, but need to check
 		b = 1./self._nu + self.loadings.squares_times_shrinkage/2.
 		data = torch.zeros(self.shape)
 		for e in range(self.shape[0]):

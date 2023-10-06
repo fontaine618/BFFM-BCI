@@ -1,3 +1,5 @@
 venv
 *.pdf
 *.chain
+.ruff_cache/
+.idea

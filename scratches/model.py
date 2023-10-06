@@ -129,3 +129,22 @@ for name, ex in experiments.items():
 	filename = ex["filename"]
 	order = ex["order"]
 	plot_llk(self, order, name, filename)
+
+
+
+import torch
+from source.bffmbci.variables.loadings import SparseHetereogeneities, Loadings, ShrinkageFactor
+
+dim = (6, 4)
+
+heterogeneities = SparseHetereogeneities(dim)
+heterogeneities.generate()
+heterogeneities.data
+
+shrinking = ShrinkageFactor(dim[1], prior_parameters=(2., 3.))
+shrinking.generate()
+shrinking.data
+
+loadings = Loadings(heterogeneities, shrinking)
+loadings.generate()
+loadings.data
