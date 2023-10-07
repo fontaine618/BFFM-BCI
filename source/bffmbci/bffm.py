@@ -362,6 +362,10 @@ class BFFModel:
 			stimulus_window=self._dimensions["stimulus_window"],
 			stimulus_to_stimulus_interval=self._dimensions["stimulus_to_stimulus_interval"],
 		)
+		# sparsify loadings
+		max_loadings = loadings.abs().max(0).values
+		threshold = 0.25 * max_loadings
+		loadings = torch.where(loadings.abs() > threshold, loadings, torch.zeros_like(loadings))
 		# smooth out the factors
 		smat = scipy.linalg.toeplitz(0.5 ** np.arange(factors.shape[2]))
 		smat = torch.Tensor(smat)
