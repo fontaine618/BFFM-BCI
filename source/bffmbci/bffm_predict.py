@@ -227,32 +227,14 @@ class BFFMPredict:
                 Theta = bffmodel.variables["loadings"].data  # E x K
                 Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
                 mean = torch.einsum("mkt, ek -> met", xi * zbar, Theta)  # (ML) x E x T
-                # # TODO need to vectorize this, way too slow currently
-                # for ml in range(M * L):
-                #     if ml % 100 == 0:
-                #         print(f"Sample {sample_idx + 1}/{N}, sequence {ml + 1}/{M * L}")
-                #     mean_ml = mean[ml, :, :]  # E x T
-                #     mean_ml = mean_ml.flatten()  # blocks are per channel [T, ..., T]
-                #     torch.einsum("ek, fk, kt -> eft", Theta, Theta, xi[ml, :, :].pow(2))
-                #     cov = torch.einsum(
-                #         "ek, fk, kt, ts, ks-> efts",
-                #         Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
-                #     )
-                #     cov = cov.permute(0, 2, 1, 3).flatten(2, 3).flatten(0, 1)
-                #     cov = 0.5 * (cov + cov.T)
-                #     cov = cov + torch.kron(torch.diag(Sigma), torch.eye(T))
-                #     dist = torch.distributions.MultivariateNormal(mean_ml, cov)
-                #     llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten())
                 batch_size = 25
                 n_batches = M * L // batch_size
                 for batch_idx in range(n_batches):
                     ml = torch.arange(batch_idx * batch_size, min((batch_idx + 1) * batch_size, M*L))
-                    print(f"Sample {sample_idx + 1}/{N}, batch {batch_idx + 1}/{n_batches}"
-                          f" ({batch_size} sequences per batch)")
+                    # print(f"Sample {sample_idx + 1}/{N}, batch {batch_idx + 1}/{n_batches}"
+                    #       f" ({batch_size} sequences per batch)")
                     mean_ml = mean[ml, :, :]  # ... x E x T
                     mean_ml = mean_ml.flatten(1)  # blocks are per channel [T, ..., T]
-                    # wait, why am I not using this ??
-                    # torch.einsum("ek, fk, bkt -> beft", Theta, Theta, xi[ml, :, :].pow(2))
                     cov = torch.einsum(
                         "ek, fk, bkt, ts, bks-> befts",
                         Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
