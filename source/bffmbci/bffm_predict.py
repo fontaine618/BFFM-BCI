@@ -228,7 +228,9 @@ class BFFMPredict:
                 Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
                 mean = torch.einsum("mkt, ek -> met", xi * zbar, Theta)  # (ML) x E x T
                 batch_size = 25
-                n_batches = M * L // batch_size + 1
+                n_batches = M * L // batch_size
+                if M * L % batch_size > 0:
+                    n_batches += 1
                 for batch_idx in range(n_batches):
                     ml = torch.arange(batch_idx * batch_size, min((batch_idx + 1) * batch_size, M*L))
                     # print(f"Sample {sample_idx + 1}/{N}, batch {batch_idx + 1}/{n_batches}"

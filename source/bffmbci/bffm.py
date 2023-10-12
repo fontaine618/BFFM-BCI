@@ -351,7 +351,7 @@ class BFFModel:
 			else:
 				self.variables[var].jitter(sd=sd)
 
-	def initialize_chain(self):
+	def initialize_chain(self, reverse=False):
 		# use WFA to find loadings and variance
 		# the estimated factors will be used to initialize the processes below
 		loadings, observation_variance, factors = bffm_initializer(
@@ -362,6 +362,9 @@ class BFFModel:
 			stimulus_window=self._dimensions["stimulus_window"],
 			stimulus_to_stimulus_interval=self._dimensions["stimulus_to_stimulus_interval"],
 		)
+		if reverse:
+			loadings = loadings.flip(1)
+			factors = factors.flip(1)
 		# sparsify loadings
 		max_loadings = loadings.abs().max(0).values
 		threshold = 0.25 * max_loadings
