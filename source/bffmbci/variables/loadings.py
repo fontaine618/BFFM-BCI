@@ -162,7 +162,7 @@ class ShrinkageFactor(Variable):
 
 	_dim_names = ["latent_dim"]
 
-	def __init__(self, n_latent, prior_parameters=(10., 10.)):
+	def __init__(self, n_latent, prior_parameters=(1., 2.)):
 		self._a1 = prior_parameters[0]
 		self._a2 = prior_parameters[1]
 		self._delta = None

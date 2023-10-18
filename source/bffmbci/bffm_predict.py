@@ -151,6 +151,62 @@ class BFFMPredict:
         else:
             return wide_pred_one_hot[:, -1, :]
 
+    def marginal_log_likelihood(
+            self,
+            order: T,  # M x J
+            sequence: T,  # M x E x T,
+            target: T,  # M x J
+            batch_size: int = 25,
+    ):
+        # TODO: perhaps abstract thing a bit for the other similar method
+        N = self.n_samples
+        M, E, nt = sequence.shape
+        self.dimensions["n_sequences"] = M
+
+        bffmodel = BFFModel(
+            stimulus_order=order,
+            target_stimulus=target,
+            sequences=sequence,
+            **self.settings,
+            **self.prior,
+            **self.dimensions,
+        )
+
+        # run through all posterior samples
+        llk = torch.zeros(M, N)
+        for sample_idx in range(N):
+            print(f"Sample {sample_idx + 1}/{N}")
+            # get global variables
+            self.update_model(bffmodel, sample_idx, None)
+            llk_idx = torch.zeros(M)
+            x = bffmodel.variables["observations"].data  # (ML) x E x T
+            xi = bffmodel.variables["loading_processes"].data  # (ML) x K x T
+            zbar = bffmodel.variables["mean_factor_processes"].data  # (ML) x K x T
+            Sigma = bffmodel.variables["observation_variance"].data  # E
+            Theta = bffmodel.variables["loadings"].data  # E x K
+            Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
+            mean = torch.einsum("mkt, ek -> met", xi * zbar, Theta)  # (ML) x E x T
+            n_batches = M // batch_size
+            if M % batch_size > 0:
+                n_batches += 1
+            for batch_idx in range(n_batches):
+                ml = torch.arange(batch_idx * batch_size, min((batch_idx + 1) * batch_size, M))
+                # print(f"Sample {sample_idx + 1}/{N}, batch {batch_idx + 1}/{n_batches}"
+                #       f" ({batch_size} sequences per batch)")
+                mean_ml = mean[ml, :, :]  # ... x E x T
+                mean_ml = mean_ml.flatten(1)  # blocks are per channel [T, ..., T]
+                cov = torch.einsum(
+                    "ek, fk, bkt, ts, bks-> befts",
+                    Theta, Theta, xi[ml, :, :], Kmat, xi[ml, :, :]
+                )
+                cov = cov.permute(0, 1, 3, 2, 4).flatten(3, 4).flatten(1, 2)
+                cov = 0.5 * (cov + cov.transpose(1, 2))
+                cov = cov + torch.kron(torch.diag(Sigma), torch.eye(nt)).unsqueeze(0)
+                dist = torch.distributions.MultivariateNormal(mean_ml, cov)
+                llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten(1))
+            llk[:, sample_idx] = llk_idx
+        return llk  # M x N
+
     def log_likelihood(
             self,
             order: T,  # M x J
@@ -160,7 +216,7 @@ class BFFMPredict:
             drop_component: int | None = None,
     ):
         N = self.n_samples
-        M, E, T = sequence.shape
+        M, E, nt = sequence.shape
         L = self.combinations.shape[0]
         B = factor_samples
         target_repeated = self.combinations.repeat(M, 1)  # (ML) x J
@@ -243,7 +299,7 @@ class BFFMPredict:
                     )
                     cov = cov.permute(0, 1, 3, 2, 4).flatten(3, 4).flatten(1, 2)
                     cov = 0.5 * (cov + cov.transpose(1, 2))
-                    cov = cov + torch.kron(torch.diag(Sigma), torch.eye(T)).unsqueeze(0)
+                    cov = cov + torch.kron(torch.diag(Sigma), torch.eye(nt)).unsqueeze(0)
                     dist = torch.distributions.MultivariateNormal(mean_ml, cov)
                     llk_idx[ml] = dist.log_prob(x[ml, :, :].flatten(1))
             else:

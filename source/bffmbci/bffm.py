@@ -303,7 +303,8 @@ class BFFModel:
 
 	def set(self, **kwargs):
 		for k, v in kwargs.items():
-			self.variables[k].data = v
+			if k in self.variables:
+				self.variables[k].data = v
 
 	def _initialize_prior_parameters(self, **kwargs):
 		prior_parameters = {
