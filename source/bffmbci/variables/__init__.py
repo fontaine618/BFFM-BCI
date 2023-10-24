@@ -5,6 +5,6 @@ from .loadings import Loadings, Heterogeneities, ShrinkageFactor, IdentityLoadin
 from .sequence_data import SequenceData
 from .gaussian_process import GaussianProcess, TruncatedGaussianProcess01
 from .plate import Plate
-from .smpg import SMGP
+from .smpg import SMGP, ConstantSMGP, SingleSMGP
 from .superposition import Superposition
 from .noisy_process import NoisyProcesses

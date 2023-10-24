@@ -110,7 +110,8 @@ class KProtocol:
             window: float = 800.,
             bandpass_window: tuple = (0.1, 15.),
             bandpass_order: int = 5,
-            downsample: int = 8
+            downsample: int = 8,
+            center: bool = True
     ):
         mat_obj = scipy.io.loadmat(filename)["Data"][0][0][0][0][0]
         signal = mat_obj[0]
@@ -196,6 +197,10 @@ class KProtocol:
         total_length = sts_interval * 11 + stimulus_window
         sequence = sequence[:, :, :total_length]
 
+        # center each sequence
+        if center:
+            sequence = sequence - sequence.mean(2, keepdim=True)
+
         # data
         self.filtered = filtered
         self.smoothed = smoothed
@@ -240,6 +245,11 @@ class KProtocol:
 
         # downsample
         stimulus = stimulus[:, ::downsample, :]
+
+        # center
+        if center:
+            self.stimulus = self.stimulus - self.stimulus.mean(1, keepdim=True)
+
         self.stimulus = stimulus
 
     def repetitions(self, reps: list[int]) -> "KProtocol":

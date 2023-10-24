@@ -57,7 +57,7 @@ class SMGP(Plate):
 		return alpha0, beta1
 
 
-class IndependentSMGP(SMGP):
+class ConstantSMGP(SMGP):
 
 	def __init__(
 			self,
@@ -67,14 +67,19 @@ class IndependentSMGP(SMGP):
 			mean_tgp=0.5,
 			mean_gp=0.,
 	):
-		super(IndependentSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
-		# replace the children with independent ones
-		self.mixing_process = ObservedVariable(torch.ones_like(self.mixing_process.data))
+		super(ConstantSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
+		self.mixing_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
+		self.nontarget_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
+		self.target_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
 		self.mixing_process.name = "mixing_process"
+		self.nontarget_process.name = "nontarget_process"
+		self.target_process.name = "target_process"
 		self.variables["mixing_process"] = self.mixing_process
+		self.variables["nontarget_process"] = self.nontarget_process
+		self.variables["target_process"] = self.target_process
 
 
-class NonnegativeSMGP(SMGP):
+class SingleSMGP(SMGP):
 
 	def __init__(
 			self,
@@ -82,13 +87,49 @@ class NonnegativeSMGP(SMGP):
 			kernel_gp: Kernel,
 			kernel_tgp: Kernel,
 			mean_tgp=0.5,
-			mean_gp=1.,
+			mean_gp=0.,
 	):
-		super(NonnegativeSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
-		# replace the children with nonnegative ones
-		self.nontarget_process = NonnegativeGaussianProcess(n_copies=n_latent, kernel=kernel_gp, mean=mean_gp)
-		self.target_process = NonnegativeGaussianProcess(n_copies=n_latent, kernel=kernel_gp, mean=mean_gp)
-		self.nontarget_process.name = "nontarget_process"
+		super(SingleSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
+		self.mixing_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
+		self.target_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
+		self.mixing_process.name = "mixing_process"
 		self.target_process.name = "target_process"
-		self.variables["nontarget_process"] = self.nontarget_process
+		self.variables["mixing_process"] = self.mixing_process
 		self.variables["target_process"] = self.target_process
+
+
+# class IndependentSMGP(SMGP):
+#
+# 	def __init__(
+# 			self,
+# 			n_latent,
+# 			kernel_gp: Kernel,
+# 			kernel_tgp: Kernel,
+# 			mean_tgp=0.5,
+# 			mean_gp=0.,
+# 	):
+# 		super(IndependentSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
+# 		# replace the children with independent ones
+# 		self.mixing_process = ObservedVariable(torch.ones_like(self.mixing_process.data))
+# 		self.mixing_process.name = "mixing_process"
+# 		self.variables["mixing_process"] = self.mixing_process
+#
+#
+# class NonnegativeSMGP(SMGP):
+#
+# 	def __init__(
+# 			self,
+# 			n_latent,
+# 			kernel_gp: Kernel,
+# 			kernel_tgp: Kernel,
+# 			mean_tgp=0.5,
+# 			mean_gp=1.,
+# 	):
+# 		super(NonnegativeSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
+# 		# replace the children with nonnegative ones
+# 		self.nontarget_process = NonnegativeGaussianProcess(n_copies=n_latent, kernel=kernel_gp, mean=mean_gp)
+# 		self.target_process = NonnegativeGaussianProcess(n_copies=n_latent, kernel=kernel_gp, mean=mean_gp)
+# 		self.nontarget_process.name = "nontarget_process"
+# 		self.target_process.name = "target_process"
+# 		self.variables["nontarget_process"] = self.nontarget_process
+# 		self.variables["target_process"] = self.target_process

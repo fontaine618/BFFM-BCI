@@ -6,7 +6,8 @@ import scipy.linalg
 import torch.nn.functional as F
 
 from .utils import Kernel
-from .variables import SequenceData, SMGP, Superposition
+from .variables import SequenceData, Superposition
+from .variables import SMGP, ConstantSMGP, SingleSMGP
 from .variables import GaussianObservations
 from .variables import ObservationVariance
 from .variables import Loadings
@@ -31,6 +32,8 @@ class BFFModel:
 			n_channels: int = 15,
 			sparse: bool = False,
 			shrinkage: str = "none",
+			covariance: str = "dynamic_regression",
+			mean_regression: bool = True,
 			**kwargs
 	):
 		self._dimensions = {
@@ -51,7 +54,9 @@ class BFFModel:
 			stimulus_order=stimulus_order,
 			target_stimulus=target_stimulus,
 			sparse=sparse,
-			shrinkage=shrinkage
+			shrinkage=shrinkage,
+			covariance=covariance,
+			mean_regression=mean_regression
 		)
 		self._sampling_order = [
 			"factor_processes",
@@ -82,10 +87,14 @@ class BFFModel:
 			stimulus_order: torch.Tensor,
 			target_stimulus: torch.Tensor,
 			sparse: bool = False,
-			shrinkage: str = "none"
+			shrinkage: str = "none",
+			covariance: str = "dynamic_regression",
+			mean_regression: bool = True
 	):
 		self._settings["sparse"] = sparse
 		self._settings["shrinkage"] = shrinkage
+		self._settings["covariance"] = covariance
+		self._settings["mean_regression"] = mean_regression
 
 		parms = self.prior_parameters
 		dims = self._dimensions
@@ -137,13 +146,32 @@ class BFFModel:
 		p = parms["kernel_tgp_loading_processes"]
 		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"])*p[2]))
 		kernel_tgp_loading_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
-		smgp_scaling = SMGP(
-			dims["latent_dim"],
-			kernel_gp_loading_processes,
-			kernel_tgp_loading_processes,
-			0.5,
-			0.
-		)
+		if covariance == "dynamic_regression":
+			smgp_scaling = SMGP(
+				dims["latent_dim"],
+				kernel_gp_loading_processes,
+				kernel_tgp_loading_processes,
+				0.5,
+				0.
+			)
+		elif covariance == "static":
+			smgp_scaling = ConstantSMGP(
+				dims["latent_dim"],
+				kernel_gp_loading_processes,
+				kernel_tgp_loading_processes,
+				0.5,
+				0.
+			)
+		elif covariance == "dynamic":
+			smgp_scaling = SingleSMGP(
+				dims["latent_dim"],
+				kernel_gp_loading_processes,
+				kernel_tgp_loading_processes,
+				0.5,
+				0.
+			)
+		else:
+			raise ValueError(f"Unknown covariance method: {covariance}.")
 
 		# Loading processes
 		loading_processes = Superposition(
@@ -162,13 +190,22 @@ class BFFModel:
 		p = parms["kernel_tgp_factor_processes"]
 		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"])*p[2]))
 		kernel_tgp_factor_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
-		smgp_factors = SMGP(
-			dims["latent_dim"],
-			kernel_gp_factor_processes,
-			kernel_tgp_factor_processes,
-			0.5,
-			0.
-		)
+		if mean_regression:
+			smgp_factors = SMGP(
+				dims["latent_dim"],
+				kernel_gp_factor_processes,
+				kernel_tgp_factor_processes,
+				0.5,
+				0.
+			)
+		else:
+			smgp_factors = ConstantSMGP(
+				dims["latent_dim"],
+				kernel_gp_factor_processes,
+				kernel_tgp_factor_processes,
+				0.5,
+				0.
+			)
 
 		# Mean factor processes
 		mean_factor_processes = Superposition(
@@ -422,6 +459,38 @@ class BFFModel:
 		for v in self.variables.values():
 			v.clear_history()
 		self.variables["observations"].log_density_history = []
+
+
+class DynamicRegressionCovarianceRegressionMean(BFFModel):
+
+	def __init__(self, **kwargs):
+		kwargs["covariance"] = "dynamic_regression"
+		kwargs["mean_regression"] = True
+		super().__init__(**kwargs)
+
+
+class DynamicCovarianceRegressionMean(BFFModel):
+
+	def __init__(self, **kwargs):
+		kwargs["covariance"] = "dynamic"
+		kwargs["mean_regression"] = True
+		super().__init__(**kwargs)
+
+
+class StaticCovarianceRegressionMean(BFFModel):
+
+	def __init__(self, **kwargs):
+		kwargs["covariance"] = "static"
+		kwargs["mean_regression"] = True
+		super().__init__(**kwargs)
+
+
+class DynamicRegressionCovarianceStaticMean(BFFModel):
+
+	def __init__(self, **kwargs):
+		kwargs["covariance"] = "dynamic_regression"
+		kwargs["mean_regression"] = False
+		super().__init__(**kwargs)
 
 
 def _create_sequence_data(n_characters, n_repetitions, n_stimulus):
