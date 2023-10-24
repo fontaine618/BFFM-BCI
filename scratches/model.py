@@ -6,6 +6,18 @@ plt.style.use("seaborn-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
+
+
+from source.bffmbci.variables.loadings import SparseHetereogeneities, Loadings, ShrinkageFactor
+
+self = ShrinkageFactor(6, prior_parameters=(1., 2.))
+
+for _ in range(20):
+	self.generate()
+	print(self.data)
+
+
+
 n_iter = 100
 
 def plot_llk(self, order, name, filename):

@@ -12,18 +12,14 @@ www.stat.columbia.edu/~gelman/research/published/A6n41.pdf
 [ ] pre-estimate smoothness to choose a parameter
 [ ] EEGNet https://github.com/vlawhern/arl-eegmodels/blob/master/examples/ERP.py
 
-- tuning
-[ ] get posteior with heterogeneity to investigate sparsity
-[ ] get posterior with shrinkage
-[ ] xivar=0
-- free typing to test performance
-- other subjects
 
-
-tomorrow:
-[ ] train a better 15 reps for 114, get posterior, FRT testing and LOO ranking
-[ ] repeat for other subjects
-
+Notes for next meeting
+======================
+Ran the experiment by reversing the order of the initialization
+- Basically what I expected: the initialization dictates the result,
+  and the prior has almost no effect (some small shrinkage).
+  The posterior for the shrinkage factor is not longer decreasing.
+  Turns out a1 should be chosen to be 1 instead
 
 Backlog
 =======
