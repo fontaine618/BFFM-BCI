@@ -2,6 +2,12 @@ import torch
 import math
 import pandas as pd
 from source.bffmbci.bffm import BFFModel
+
+from source.bffmbci.bffm import DynamicRegressionCovarianceRegressionMean
+from source.bffmbci.bffm import DynamicCovarianceRegressionMean
+from source.bffmbci.bffm import StaticCovarianceRegressionMean
+from source.bffmbci.bffm import DynamicRegressionCovarianceStaticMean
+
 from source.results_old.mcmc_results import MCMCResults
 import matplotlib.pyplot as plt
 from torch.autograd.functional import jacobian, hessian
@@ -9,25 +15,37 @@ plt.style.use("seaborn-v0_8-whitegrid")
 
 torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-latent_dim = 3
+latent_dim = 5
 n_iter = 100
 n_chains = 5
 batchsize = 10
 torch.manual_seed(0)
 model = BFFModel.generate_from_dimensions(
 	latent_dim=latent_dim,
-	n_channels=7,
+	n_channels=15,
 	stimulus_to_stimulus_interval=10,
 	stimulus_window=55,
-	n_stimulus=(9, 2),
 	n_characters=17,
 	n_repetitions=15,
-	heterogeneities=3.,
-	shrinkage_factor=(2., 5.),
-	nonnegative_smgp=False,
-	scaling_activation="e",
-	kernel_gp_loading_processes=(0.99, 0.1, 1.)
+	sparse=False,
+	shrinkage="none",
+	covariance="dynamic",
+	mean_regression=False
 )
+model = DynamicRegressionCovarianceStaticMean.generate_from_dimensions(
+	latent_dim=latent_dim,
+	n_channels=15,
+	stimulus_to_stimulus_interval=10,
+	stimulus_window=55,
+	n_characters=17,
+	n_repetitions=15,
+	sparse=False,
+	shrinkage="none"
+)
+
+model.variables["loading_processes"].data
+model.variables["factor_processes"].data
+model.variables["mean_factor_processes"].data
 
 self = model.variables["factor_processes"]
 self.generate()
@@ -124,9 +142,6 @@ self = model.variables["smgp_factors"].target_process
 self = self.superposition.observations
 
 
-for k, v in model.variables.items():
-    print(k)
-	print(v)
 
 
 
@@ -173,9 +188,9 @@ for chain_id in range(n_chains):
 		metrics100[chain_id][i] = result.metrics(true_values)
 
 
-for var in metrics[0].keys():
-	for metric in metrics[0][var].keys():
-		filename = f"{dir}{var}.{metric}.pdf"
+# for var in metrics[0].keys():
+# 	for metric in metrics[0][var].keys():
+# 		filename = f"{dir}{var}.{metric}.pdf"
 
 
 
