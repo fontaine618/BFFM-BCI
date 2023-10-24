@@ -1,4 +1,4 @@
-from .variable import Variable, ObservedVariable
+from .variable import Variable, ObservedVariable, ConstantVariable
 from .observation_variance import ObservationVariance
 from .observations import GaussianObservations
 from .loadings import Loadings, Heterogeneities, ShrinkageFactor, IdentityLoadings, SparseHetereogeneities, IdentityShrinkage
