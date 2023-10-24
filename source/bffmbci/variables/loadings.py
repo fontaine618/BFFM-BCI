@@ -146,7 +146,6 @@ class SparseHetereogeneities(Variable):
 		self._set_value(data)
 
 
-
 class ShrinkageFactor(Variable):
 	r"""
 	Parameter shrinking loading entries.
@@ -196,6 +195,26 @@ class ShrinkageFactor(Variable):
 			tau = torch.cumprod(delta, 0)
 		self._delta = delta
 		self._set_value(tau, store=store)
+
+
+class IdentityShrinkage(Variable):
+	r"""
+	return 1 and doesn't update, just to ensure compatibility
+	"""
+
+	_dim_names = ["latent_dim"]
+
+	def __init__(self, n_latent, **kwargs):
+		self.loadings: Loadings = None
+		super().__init__(dim=(n_latent, ), store=True, init=None)
+
+	def generate(self):
+		K = self.shape[0]
+		self._set_value(torch.ones(K))
+
+	def sample(self, store=True):
+		K = self.shape[0]
+		self._set_value(torch.ones(K), store=store)
 
 
 class IdentityLoadings(ObservedVariable):

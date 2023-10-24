@@ -6,10 +6,12 @@ import scipy.linalg
 import torch.nn.functional as F
 
 from .utils import Kernel
-from .variables import SequenceData, SMGP, Superposition, IndependentSMGP, NonnegativeSMGP
+from .variables import SequenceData, SMGP, Superposition
 from .variables import GaussianObservations
 from .variables import ObservationVariance
-from .variables import Loadings, Heterogeneities, ShrinkageFactor, SparseHetereogeneities
+from .variables import Loadings
+from .variables import Heterogeneities, SparseHetereogeneities
+from .variables import ShrinkageFactor, IdentityShrinkage
 from .variables import NoisyProcesses
 from .bffm_init import bffm_initializer
 
@@ -24,13 +26,11 @@ class BFFModel:
 			stimulus_to_stimulus_interval: int,
 			latent_dim: int,
 			sequences: Union[torch.Tensor, None] = None,
-			n_stimulus: Tuple[int, int] = (6, 6),
+			n_stimulus: Tuple[int, int] = (12, 2),
 			n_sequences: int = 15*19,
 			n_channels: int = 15,
-			independent_smgp: bool = False,
-			nonnegative_smgp: bool = False,
-			scaling_activation: str = "exp",
 			sparse: bool = False,
+			shrinkage: str = "none",
 			**kwargs
 	):
 		self._dimensions = {
@@ -50,10 +50,8 @@ class BFFModel:
 			sequences=sequences,
 			stimulus_order=stimulus_order,
 			target_stimulus=target_stimulus,
-			independent_smgp=independent_smgp,
-			nonnegative_smgp=nonnegative_smgp,
-			scaling_activation=scaling_activation,
-			sparse=sparse
+			sparse=sparse,
+			shrinkage=shrinkage
 		)
 		self._sampling_order = [
 			"factor_processes",
@@ -83,15 +81,11 @@ class BFFModel:
 			sequences: Union[torch.Tensor, None],
 			stimulus_order: torch.Tensor,
 			target_stimulus: torch.Tensor,
-			independent_smgp: bool = False,
-			nonnegative_smgp: bool = False,
-			scaling_activation: str = "exp",
-			sparse: bool = False
+			sparse: bool = False,
+			shrinkage: str = "none"
 	):
-		self._settings["independent_smgp"] = independent_smgp
-		self._settings["nonnegative_smgp"] = nonnegative_smgp
-		self._settings["scaling_activation"] = scaling_activation
 		self._settings["sparse"] = sparse
+		self._settings["shrinkage"] = shrinkage
 
 		parms = self.prior_parameters
 		dims = self._dimensions
@@ -113,10 +107,18 @@ class BFFModel:
 				dim=(dims["n_channels"], dims["latent_dim"]),
 				gamma=parms["heterogeneities"]
 			)
-		shrinkage_factor = ShrinkageFactor(
-			n_latent=dims["latent_dim"],
-			prior_parameters=parms["shrinkage_factor"]
-		)
+		if shrinkage == "none":
+			shrinkage_factor = IdentityShrinkage(
+				n_latent=dims["latent_dim"],
+				prior_parameters=parms["shrinkage_factor"]
+			)
+		elif shrinkage == "multiplicative_gamma":
+			shrinkage_factor = ShrinkageFactor(
+				n_latent=dims["latent_dim"],
+				prior_parameters=parms["shrinkage_factor"]
+			)
+		else:
+			raise ValueError(f"Unknown shrinkage method: {shrinkage}.")
 		loadings = Loadings(
 			heterogeneities=heterogeneities,
 			shrinkage_factor=shrinkage_factor
@@ -142,22 +144,6 @@ class BFFModel:
 			0.5,
 			0.
 		)
-		if independent_smgp:
-			smgp_scaling = IndependentSMGP(
-				dims["latent_dim"],
-				kernel_gp_loading_processes,
-				kernel_tgp_loading_processes,
-				0.5,
-				0.
-			)
-		if nonnegative_smgp:
-			smgp_scaling = NonnegativeSMGP(
-				dims["latent_dim"],
-				kernel_gp_loading_processes,
-				kernel_tgp_loading_processes,
-				0.5,
-				0.
-			)
 
 		# Loading processes
 		loading_processes = Superposition(
@@ -165,7 +151,7 @@ class BFFModel:
 			sequence_data=sequence_data,
 			stimulus_to_stimulus_interval=dims["stimulus_to_stimulus_interval"],
 			window_length=dims["stimulus_window"],
-			activation=scaling_activation
+			activation="exp"
 		)
 		loading_processes.name = "loading_processes"
 
@@ -183,14 +169,6 @@ class BFFModel:
 			0.5,
 			0.
 		)
-		if independent_smgp:
-			smgp_factors = IndependentSMGP(
-				dims["latent_dim"],
-				kernel_gp_factor_processes,
-				kernel_tgp_factor_processes,
-				0.5,
-				0.
-			)
 
 		# Mean factor processes
 		mean_factor_processes = Superposition(
@@ -308,14 +286,14 @@ class BFFModel:
 
 	def _initialize_prior_parameters(self, **kwargs):
 		prior_parameters = {
-			"observation_variance": (3., 1.),
+			"observation_variance": (1., 10.),
 			"heterogeneities": 3.,
-			"shrinkage_factor": (1., 10.),
-			"kernel_gp_factor_processes": (0.99, 1., 1.),
-			"kernel_tgp_factor_processes": (0.99, 0.5, 1.),
-			"kernel_gp_loading_processes": (0.99, 1., 1.),
-			"kernel_tgp_loading_processes": (0.99, 0.5, 1.),
-			"kernel_gp_factor": (0.99, 0.1, 1.)
+			"shrinkage_factor": (1., 3.),
+			"kernel_gp_factor_processes": (0.7, 1., 1.),
+			"kernel_tgp_factor_processes": (0.7, 0.5, 1.),
+			"kernel_gp_loading_processes": (0.7, 1., 1.),
+			"kernel_tgp_loading_processes": (0.7, 0.5, 1.),
+			"kernel_gp_factor": (0.7, 0.1, 1.)
 		}
 		for k in prior_parameters.keys():
 			if k in kwargs:
