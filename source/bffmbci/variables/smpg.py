@@ -1,6 +1,6 @@
 import torch
 import torch.linalg
-from .variable import ObservedVariable
+from .variable import ObservedVariable, ConstantVariable
 from .gaussian_process import GaussianProcess, TruncatedGaussianProcess01, NonnegativeGaussianProcess
 from .plate import Plate
 from ..utils import Kernel
@@ -68,9 +68,9 @@ class ConstantSMGP(SMGP):
 			mean_gp=0.,
 	):
 		super(ConstantSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
-		self.mixing_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
-		self.nontarget_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
-		self.target_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
+		self.mixing_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
+		self.nontarget_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
+		self.target_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
 		self.mixing_process.name = "mixing_process"
 		self.nontarget_process.name = "nontarget_process"
 		self.target_process.name = "target_process"
@@ -90,8 +90,8 @@ class SingleSMGP(SMGP):
 			mean_gp=0.,
 	):
 		super(SingleSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
-		self.mixing_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
-		self.target_process = ObservedVariable(torch.zeros_like(self.mixing_process.data))
+		self.mixing_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
+		self.target_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
 		self.mixing_process.name = "mixing_process"
 		self.target_process.name = "target_process"
 		self.variables["mixing_process"] = self.mixing_process

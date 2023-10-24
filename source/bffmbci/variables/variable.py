@@ -166,3 +166,29 @@ class ObservedVariable(Variable):
 
 	def jitter(self, sd: float = 0.1):
 		pass
+
+
+class ConstantVariable(Variable):
+	"""
+	A little hack so that we store the values of variables we do not sample.
+	This is to ensure compatibility of submodels.
+	"""
+
+	_observed = True
+
+	def __init__(self, value=None, dim=None):
+		if value is not None:
+			super().__init__(value.size(), store=False, init=value)
+		elif dim is not None:
+			super().__init__(dim, store=False, init=None)
+		else:
+			raise ValueError("Cannot instantiate an ObservedVariable without its value or its dimension")
+
+	def jitter(self, sd: float = 0.1):
+		pass
+
+	def generate(self, **kwargs):
+		self._set_value(self._value)
+
+	def sample(self, store=True):
+		self._set_value(self._value, store=store)
