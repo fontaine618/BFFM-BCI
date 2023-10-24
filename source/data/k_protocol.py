@@ -248,7 +248,7 @@ class KProtocol:
 
         # center
         if center:
-            self.stimulus = self.stimulus - self.stimulus.mean(1, keepdim=True)
+            stimulus = stimulus - stimulus.mean(1, keepdim=True)
 
         self.stimulus = stimulus
 
