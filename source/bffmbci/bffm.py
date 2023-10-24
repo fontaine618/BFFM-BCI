@@ -330,7 +330,7 @@ class BFFModel:
 			"kernel_tgp_factor_processes": (0.7, 0.5, 1.),
 			"kernel_gp_loading_processes": (0.7, 1., 1.),
 			"kernel_tgp_loading_processes": (0.7, 0.5, 1.),
-			"kernel_gp_factor": (0.7, 0.1, 1.)
+			"kernel_gp_factor": (0.7, 1., 1.)
 		}
 		for k in prior_parameters.keys():
 			if k in kwargs:

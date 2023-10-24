@@ -73,7 +73,7 @@ class BFFMPredict:
             self,
             order: T,  # M x J
             sequence: T,  # M x E x T,
-            factor_samples: int,
+            factor_samples: int = 10,
             character_idx: T | None = None,  # M
             factor_processes_method: str = "analytic",
             drop_component: int | None = None,
