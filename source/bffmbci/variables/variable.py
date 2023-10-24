@@ -178,9 +178,9 @@ class ConstantVariable(Variable):
 
 	def __init__(self, value=None, dim=None):
 		if value is not None:
-			super().__init__(value.size(), store=False, init=value)
+			super().__init__(value.size(), store=True, init=value)
 		elif dim is not None:
-			super().__init__(dim, store=False, init=None)
+			super().__init__(dim, store=True, init=None)
 		else:
 			raise ValueError("Cannot instantiate an ObservedVariable without its value or its dimension")
 
