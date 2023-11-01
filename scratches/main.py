@@ -2,7 +2,7 @@ import torch
 import math
 import pandas as pd
 from source.bffmbci.bffm import BFFModel
-
+from source.bffmbci.bffm_results import BFFMResults
 from source.bffmbci.bffm import DynamicRegressionCovarianceRegressionMean
 from source.bffmbci.bffm import DynamicCovarianceRegressionMean
 from source.bffmbci.bffm import StaticCovarianceRegressionMean
@@ -29,8 +29,8 @@ model = BFFModel.generate_from_dimensions(
 	n_repetitions=15,
 	sparse=False,
 	shrinkage="none",
-	covariance="dynamic",
-	mean_regression=False
+	covariance="dynamic_regression",
+	mean_regression=True
 )
 model = DynamicRegressionCovarianceStaticMean.generate_from_dimensions(
 	latent_dim=latent_dim,
@@ -39,7 +39,7 @@ model = DynamicRegressionCovarianceStaticMean.generate_from_dimensions(
 	stimulus_window=55,
 	n_characters=17,
 	n_repetitions=15,
-	sparse=False,
+	sparse=True,
 	shrinkage="none"
 )
 
@@ -55,6 +55,11 @@ self.data = self.posterior_mean
 self.data = self.posterior_mean_by_conditionals
 print(self.log_density + model.variables["observations"].log_density)
 
+results = BFFMResults.single_chain(**model.results())
+results.add_transformed_variables()
+
+
+self = model.variables["heterogeneities"]
 
 
 

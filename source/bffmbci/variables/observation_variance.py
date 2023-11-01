@@ -39,3 +39,8 @@ class ObservationVariance(Variable):
 	def generate(self):
 		dist = InverseGamma(self._a, self._b)
 		self._set_value(dist.sample(self.shape))
+
+	@property
+	def log_density(self):
+		dist = InverseGamma(self._a, self._b)
+		return dist.log_prob(self.data).sum().item()

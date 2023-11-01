@@ -355,7 +355,8 @@ class BFFModel:
 			# 	print(f"Error sampling {var}: {e}.")
 			# 	# we need to append to the history, otherwise the samples will be misaligned
 			# 	obj.store_new_value()
-		self.variables["observations"].store_log_density()
+		# self.variables["observations"].store_log_density()
+		self.store_log_density()
 
 	def jitter_values(self, which=None, sd=0.01):
 		if which is None:
@@ -432,15 +433,22 @@ class BFFModel:
 			if v._store
 		}
 
+	def log_density_history(self, start=0, end=None, thin=1):
+		return {
+			k: v.log_density_history(start=start, end=end, thin=thin)
+			for k, v in self.variables.items()
+		}
+
+	def store_log_density(self):
+		for v in self.variables.values():
+			v.store_log_density()
+
 	def results(self, start=0, end=None, thin=1):
-		chain = self.chain(start, end, thin)  # preprocess first to reduce memory
-		llk = self.variables["observations"].log_density_history
-		if end is None:
-			end = len(llk)
-		llk = llk[start:end:thin]
+		chain = self.chain(start, end, thin)
+		llk = self.log_density_history(start, end, thin)
 		out = {
 			"chain": chain,
-			"log_likelihood": {"observations": llk},
+			"log_likelihood": llk,
 			"prior": self.prior_parameters,
 			"dimensions": self._dimensions,
 			"settings": self._settings,
@@ -458,7 +466,6 @@ class BFFModel:
 	def clear_history(self):
 		for v in self.variables.values():
 			v.clear_history()
-		self.variables["observations"].log_density_history = []
 
 
 class DynamicRegressionCovarianceRegressionMean(BFFModel):

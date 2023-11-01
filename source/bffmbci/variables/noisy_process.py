@@ -83,8 +83,6 @@ class NoisyProcesses(Variable):
 		self.data = oldvalue
 		return newvalue.detach()
 
-
-
 	@property
 	def posterior_mean(self):
 
@@ -106,8 +104,6 @@ class NoisyProcesses(Variable):
 		self.data = oldvalue
 		return value.reshape(self.shape).detach()
 
-
-
 	@property
 	def posterior_mean_by_conditionals(self):
 
@@ -125,7 +121,6 @@ class NoisyProcesses(Variable):
 		postmean = self.data.clone().detach()
 		self.data = oldvalue
 		return postmean
-
 
 	def sample(self, store=False):
 		N, K, T = self.shape

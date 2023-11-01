@@ -70,6 +70,12 @@ class Loadings(Variable):
 	def squares_by_heterogeneities(self):
 		return self.data.pow(2) / self.heterogeneities.data
 
+	@property
+	def log_density(self):
+		var = self.heterogeneities.data / self.shrinkage_factor.data.unsqueeze(0)
+		prior_dist = Normal(0, var.sqrt())
+		return prior_dist.log_prob(self.data).sum().item()
+
 
 class Heterogeneities(Variable):
 	r"""
@@ -98,6 +104,11 @@ class Heterogeneities(Variable):
 	def generate(self):
 		dist = InverseGamma(self._gamma/2, self._gamma/2)
 		self._set_value(dist.sample(self.shape))
+
+	@property
+	def log_density(self):
+		dist = InverseGamma(self._gamma/2, self._gamma/2)
+		return dist.log_prob(self.data).sum().item()
 
 
 class SparseHetereogeneities(Variable):
@@ -144,6 +155,18 @@ class SparseHetereogeneities(Variable):
 			for k in range(self.shape[1]):
 				data[e, k] = InverseGamma(a, b[e, k]).sample()
 		self._set_value(data)
+
+	@property
+	def log_density(self):
+		# nu contribution
+		dist = InverseGamma(0.5, 1.)
+		logp = dist.log_prob(self._nu).sum()
+		# data contribution
+		a = 0.5
+		b = 1./self._nu
+		dist = InverseGamma(a, b)
+		logp += dist.log_prob(self.data).sum()
+		return logp.item()
 
 
 class ShrinkageFactor(Variable):
@@ -195,6 +218,15 @@ class ShrinkageFactor(Variable):
 			tau = torch.cumprod(delta, 0)
 		self._delta = delta
 		self._set_value(tau, store=store)
+
+	@property
+	def log_density(self):
+		K = self.shape[0]
+		a = torch.ones(K) * self._a2
+		a[0] = self._a1
+		dist = Gamma(a, 1)
+		logp = dist.log_prob(self._delta).sum()
+		return logp.item()
 
 
 class IdentityShrinkage(Variable):

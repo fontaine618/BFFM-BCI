@@ -126,3 +126,27 @@ class Plate:
 	def store_new_value(self, store=False):
 		for v in self.values():
 			v.store_new_value(store)
+
+	@property
+	def log_density(self):
+		return {
+			k: v.log_density
+			for k, v in self.items()
+		}
+
+	@property
+	def _log_density_history(self):
+		return {
+			k: v.log_density_history
+			for k, v in self.items()
+		}
+
+	def log_density_history(self, start=0, end=None, thin=1):
+		return {
+			k: v.log_density_history(start=start, end=end, thin=thin)
+			for k, v in self.items()
+		}
+
+	def store_log_density(self):
+		for v in self.values():
+			v.store_log_density()

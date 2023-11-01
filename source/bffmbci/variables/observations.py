@@ -39,7 +39,6 @@ class GaussianObservations(ObservedVariable):
 		}
 		loading_processes._message_from_child = "message_to_loading_processes"
 		factor_processes._message_from_child = "message_to_factor_processes"
-		self.log_density_history = []
 
 	@property
 	def residuals(self):
@@ -89,9 +88,6 @@ class GaussianObservations(ObservedVariable):
 	@property
 	def log_density(self):
 		return self.log_density_per_sequence.sum().item()
-
-	def store_log_density(self):
-		self.log_density_history.append(self.log_density)
 
 	def generate(self):
 		sd = self.observation_variance.data.sqrt()

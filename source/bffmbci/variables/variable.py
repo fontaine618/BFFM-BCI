@@ -31,6 +31,7 @@ class Variable:
 		self.parents = dict()
 		self.children = dict()
 		self.true_value = None
+		self._log_density_history = []
 
 	def set_store(self, store: bool):
 		self._store = store
@@ -140,6 +141,17 @@ class Variable:
 	def clear_history(self):
 		if self._store:
 			self._history = torch.zeros((0, *self._dim))
+		self._log_density_history = []
+
+	def store_log_density(self):
+		self._log_density_history.append(self.log_density)
+
+	@property
+	def log_density(self):
+		return 0.
+
+	def log_density_history(self, start=0, end=None, thin=1):
+		return self._log_density_history[start:end:thin]
 
 
 class ObservedVariable(Variable):

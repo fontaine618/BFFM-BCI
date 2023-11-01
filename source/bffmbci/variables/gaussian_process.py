@@ -352,6 +352,18 @@ class GaussianProcess(Variable):
 		self.superposition.generate()
 		return self.superposition.observations.log_density
 
+	@property
+	def log_density_per_sequence(self):
+		prior_dist = MultivariateNormal(
+			loc=self.mean.data,
+			scale_tril=self.kernel.chol
+		)
+		return prior_dist.log_prob(self.data)
+
+	@property
+	def log_density(self):
+		return self.log_density_per_sequence.sum().item()
+
 
 class TruncatedGaussianProcess01(GaussianProcess):
 

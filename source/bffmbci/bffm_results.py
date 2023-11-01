@@ -351,7 +351,6 @@ def add_transformed_variables(chains):
     if "loadings" in chains:
         L = chains["loadings"].transpose(-1, -2)  # (..., K, E)
         chains["loadings.rank_one"] = L.unsqueeze(-1) @ L.unsqueeze(-2)  # (..., K, E, E)
-
         L = chains["loadings"]
         Lnorm = torch.linalg.norm(L, dim=-2, keepdim=True)
         chains["loadings.norm_one"] = L / Lnorm
@@ -368,7 +367,6 @@ def add_transformed_variables(chains):
             chains["smgp_factors.nontarget_process"] + \
             chains["smgp_factors.mixing_process"] * \
             chains["smgp_factors.target_process"]
-
         chains["smgp_factors.difference_process"] = \
             chains["smgp_factors.target_signal"] - \
             chains["smgp_factors.nontarget_process"]
@@ -381,7 +379,6 @@ def add_transformed_variables(chains):
             chains["smgp_scaling.nontarget_process"] + \
             chains["smgp_scaling.mixing_process"] * \
             chains["smgp_scaling.target_process"]
-
         chains["smgp_scaling.difference_process"] = \
             chains["smgp_scaling.target_signal"] - \
             chains["smgp_scaling.nontarget_process"]
@@ -420,6 +417,12 @@ def add_transformed_variables(chains):
         P = chains["difference_mean_process.componentwise"]
         chains["difference_mean_process.channelwise"] = \
             torch.einsum("csek,cskt->cset", L, P)
+    # log likelihood
+    llk = 0.
+    for k, v in chains.items():
+        if k.startswith("log_likelihood"):
+            llk += v
+    chains["log_likelihood.sum"] = llk
 
 
 
