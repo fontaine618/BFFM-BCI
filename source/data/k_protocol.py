@@ -252,7 +252,7 @@ class KProtocol:
 
         self.stimulus = stimulus
 
-    def repetitions(self, reps: list[int]) -> "KProtocol":
+    def repetitions(self, reps: list[int], reverse: bool = False) -> "KProtocol":
         seqs = self.stimulus_data.groupby("sequence").head(1).loc[:, ("sequence", "character", "repetition")]
         keep = seqs["repetition"].isin(reps).values
         tkeep = torch.BoolTensor(keep)
@@ -261,4 +261,9 @@ class KProtocol:
         self.target = self.target[tkeep, :]
         self.character_idx = self.character_idx[tkeep]
         self.stimulus_data = self.stimulus_data[self.stimulus_data["repetition"].isin(reps)]
+        if reverse:
+            self.sequence = torch.flip(self.sequence, dims=(0,))
+            self.stimulus_order = torch.flip(self.stimulus_order, dims=(0,))
+            self.target = torch.flip(self.target, dims=(0,))
+            self.character_idx = self.character_idx.flip(dims=(0,))
         return self
