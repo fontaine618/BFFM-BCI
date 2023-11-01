@@ -420,7 +420,7 @@ def add_transformed_variables(chains):
     # log likelihood
     llk = 0.
     for k, v in chains.items():
-        if k.startswith("log_likelihood"):
+        if k.startswith("log_likelihood") and k != "log_likelihood.sum":
             llk += v
     chains["log_likelihood.sum"] = llk
 
