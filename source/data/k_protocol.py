@@ -260,10 +260,14 @@ class KProtocol:
         self.stimulus_order = self.stimulus_order[tkeep, :]
         self.target = self.target[tkeep, :]
         self.character_idx = self.character_idx[tkeep]
-        self.stimulus_data = self.stimulus_data[self.stimulus_data["repetition"].isin(reps)]
+        stim_keep = self.stimulus_data["repetition"].isin(reps).values
+        self.stimulus_data = self.stimulus_data[stim_keep]
+        self.stimulus = self.stimulus[stim_keep, :, :]
         if reverse:
             self.sequence = torch.flip(self.sequence, dims=(0,))
             self.stimulus_order = torch.flip(self.stimulus_order, dims=(0,))
             self.target = torch.flip(self.target, dims=(0,))
             self.character_idx = self.character_idx.flip(dims=(0,))
+            self.stimulus_data = self.stimulus_data.iloc[::-1]
+            self.stimulus = torch.flip(self.stimulus, dims=(0,))
         return self
