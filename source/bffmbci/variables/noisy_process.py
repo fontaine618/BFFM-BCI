@@ -104,6 +104,40 @@ class NoisyProcesses(Variable):
 		self.data = oldvalue
 		return value.reshape(self.shape).detach()
 
+	def posterior_mean_iterative(self, n_iter: int = 10):
+
+		oldvalue = self.data.clone().detach()
+		N, K, T = self.shape
+
+		prevllk = self.log_density + self.observations.log_density
+		for i in range(n_iter):
+			value = torch.nn.Parameter(self.data.reshape(N, -1), requires_grad=True)
+
+			def f(z):
+				self.data = z.reshape(N, K, T)
+				return self.log_density_per_sequence.sum() + \
+					self.observations.log_density_per_sequence.sum()
+
+			def grad(z):
+				return jacobian(f, z, create_graph=True, strategy="reverse-mode", vectorize=False).sum(0)
+
+			g = jacobian(f, value, strategy="reverse-mode", vectorize=True)
+			H = jacobian(grad, value, strategy="reverse-mode", vectorize=False).permute(1, 0, 2)
+
+			value = value - torch.linalg.solve(H, g)
+
+			self.data = value.reshape(self.shape).detach()
+
+			llk = self.log_density + self.observations.log_density
+			print(f"{i}: {llk}")
+			if abs(prevllk - llk) / abs(llk) < 1e-7:
+				break
+			prevllk = llk
+
+		postmean = self.data.clone().detach()
+		self.data = oldvalue
+		return postmean
+
 	@property
 	def posterior_mean_by_conditionals(self):
 
