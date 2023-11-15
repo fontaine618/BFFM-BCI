@@ -110,7 +110,7 @@ class NoisyProcesses(Variable):
 		oldvalue = self.data.clone().detach()
 
 		prevllk = self.log_density + self.observations.log_density
-		for i in range(2000):
+		for i in range(50):
 			self.data = self.conditional_posterior_mean
 			llk = self.log_density + self.observations.log_density
 			print(f"{i}: {llk}")
