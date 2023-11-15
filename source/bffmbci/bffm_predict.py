@@ -207,6 +207,38 @@ class BFFMPredict:
             llk[:, sample_idx] = llk_idx
         return llk  # M x N
 
+    def maximum_log_likelihood(
+            self,
+            order: T,  # M x J
+            sequence: T,  # M x E x T,
+            target: T,  # M x J
+    ):
+        # TODO: perhaps abstract thing a bit for the other similar method
+        N = self.n_samples
+        M, E, nt = sequence.shape
+        self.dimensions["n_sequences"] = M
+
+        bffmodel = BFFModel(
+            stimulus_order=order,
+            target_stimulus=target,
+            sequences=sequence,
+            **self.settings,
+            **self.prior,
+            **self.dimensions,
+        )
+
+        # run through all posterior samples
+        llk = torch.zeros(M, N)
+        for sample_idx in range(N):
+            print(f"Sample {sample_idx + 1}/{N}")
+            # get global variables
+            self.update_model(bffmodel, sample_idx, None)
+            bffmodel.variables["factor_processes"].data = \
+                bffmodel.variables["factor_processes"].posterior_mean_by_conditionals
+            llk_idx = bffmodel.variables["observations"].log_density_per_sequence
+            llk[:, sample_idx] = llk_idx
+        return llk  # M x N
+
     def log_likelihood(
             self,
             order: T,  # M x J
