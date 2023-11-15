@@ -234,7 +234,8 @@ class BFFMPredict:
             # get global variables
             self.update_model(bffmodel, sample_idx, None)
             bffmodel.variables["factor_processes"].data = \
-                bffmodel.variables["factor_processes"].posterior_mean_by_conditionals
+                bffmodel.variables["factor_processes"].posterior_mean
+                # bffmodel.variables["factor_processes"].posterior_mean_by_conditionals
             llk_idx = bffmodel.variables["observations"].log_density_per_sequence
             llk[:, sample_idx] = llk_idx
         return llk  # M x N
