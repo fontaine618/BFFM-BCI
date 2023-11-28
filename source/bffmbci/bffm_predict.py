@@ -77,6 +77,7 @@ class BFFMPredict:
             character_idx: T | None = None,  # M
             factor_processes_method: str = "analytic",
             drop_component: int | None = None,
+            batchsize: int = 25,
     ):
         # first step is always to get log-likelihood for all sequences
         # all combinations and all posterior samples
@@ -86,6 +87,7 @@ class BFFMPredict:
             factor_samples=factor_samples,
             factor_processes_method=factor_processes_method,
             drop_component=drop_component,
+            batchsize=batchsize
         )
         if character_idx is None:
             llk_long = llk.unsqueeze(1)  # M x 1 x L x N
@@ -247,6 +249,7 @@ class BFFMPredict:
             factor_samples: int,
             factor_processes_method: str = "maximize",
             drop_component: int | None = None,
+            batchsize: int = 25,
     ):
         N = self.n_samples
         M, E, nt = sequence.shape
@@ -316,7 +319,7 @@ class BFFMPredict:
                 Theta = bffmodel.variables["loadings"].data  # E x K
                 Kmat = bffmodel.variables["factor_processes"].kernel.cov  # T x T
                 mean = torch.einsum("mkt, ek -> met", xi * zbar, Theta)  # (ML) x E x T
-                batch_size = 25
+                batch_size = batchsize
                 n_batches = M * L // batch_size
                 if M * L % batch_size > 0:
                     n_batches += 1
