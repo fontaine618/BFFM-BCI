@@ -95,7 +95,7 @@ class WFA:
 		# TODO check this,
 		Psi = self._X.T @ self._X - num @ self._loadings.T
 		Psi /= self.n_samples
-		self._observation_variance = torch.diag(Psi)
+		self._observation_variance = torch.diag(Psi).clamp_min(1e-5)
 		# self._observation_variance = self._X.pow(2.).sum(0)
 		# self._observation_variance -= (self._X * (self._m1 @ self._loadings.T)).sum(0)
 		# self._observation_variance /= self.n_samples
