@@ -503,9 +503,14 @@ class DynamicRegressionCovarianceStaticMean(BFFModel):
 def _create_sequence_data(n_characters, n_repetitions, n_stimulus):
 	n_sequences = n_characters * n_repetitions
 	stimulus_order = torch.vstack([torch.randperm(n_stimulus[0]) for _ in range(n_sequences)])
-	target_stimulus = torch.vstack([
-		torch.randperm(n_stimulus[0])[:n_stimulus[1]]
-		for _ in range(n_characters)
+	# TODO: this is hard coded for 6-6 now
+	# target_stimulus = torch.vstack([
+	# 	torch.randperm(n_stimulus[0])[:n_stimulus[1]]
+	# 	for _ in range(n_characters)
+	# ])
+	target_stimulus = torch.hstack([
+		torch.randint(0, 6, (n_characters, 1)),
+		torch.randint(6, 12, (n_characters, 1))
 	])
 	target_stimulus = target_stimulus.repeat_interleave(n_repetitions, 0)
 	target_stimulus = F.one_hot(target_stimulus, num_classes=n_stimulus[0]).max(1).values
