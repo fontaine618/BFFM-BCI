@@ -320,6 +320,9 @@ class BFFModel:
 		for k, v in kwargs.items():
 			if k in self.variables:
 				self.variables[k].data = v
+			elif "." in k:
+				plate, var = k.split(".")
+				self.variables[plate].variables[var].data = v
 
 	def _initialize_prior_parameters(self, **kwargs):
 		prior_parameters = {
