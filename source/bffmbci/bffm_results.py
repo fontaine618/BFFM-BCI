@@ -425,4 +425,26 @@ def add_transformed_variables(chains):
     chains["log_likelihood.sum"] = llk
 
 
+def importance_statistic(chains):
+    # need to compute the signals
+    add_transformed_variables(chains)
+    L = chains["loadings"]  # nc x ns x E x K
+    beta_z1 = chains["smgp_factors.target_signal"]  # nc x ns x K x T
+    beta_z0 = chains["smgp_factors.nontarget_process"]
+    beta_xi1 = chains["smgp_scaling.target_signal"]
+    beta_xi0 = chains["smgp_scaling.nontarget_process"]
+    diff = beta_z1 * beta_xi1.exp() - beta_z0 * beta_xi0.exp()
+    product = torch.einsum(
+        "cbek, cbkt -> cbket",
+        L,
+        diff
+    )
+    fnorm = product.pow(2.).sum(-1).sum(-1).sqrt()
+    fnorm = fnorm.reshape(-1, fnorm.shape[-1])
+    # using rank-1 properties
+    dnorm = diff.pow(2.).sum(-1).sqrt()
+    lnorm = L.pow(2.).sum(-2).sqrt()
+    prod = dnorm * lnorm
+    prod = prod.reshape(-1, prod.shape[-1])
+    return prod.mean(0)
 
