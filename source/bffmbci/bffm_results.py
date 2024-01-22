@@ -183,8 +183,8 @@ class BFFMResults:
         if not self._aligned:
             warnings.warn("The chains were not aligned. The posterior means may not correct.")
         if by_chains:
-            return {k: v._mean(1) for k, v in self.chains.items()}
-        return {k: v._mean((0, 1)) for k, v in self.chains.items()}
+            return {k: v.mean(1) for k, v in self.chains.items()}
+        return {k: v.mean((0, 1)) for k, v in self.chains.items()}
 
     def posterior_median(self, by_chains=False):
         if not self._aligned:
