@@ -250,6 +250,23 @@ class BFFMResults:
         self.chains["smgp_factors.nontarget_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
         self.chains["smgp_factors.target_process"] *= signflips.unsqueeze(1).unsqueeze(-1)
 
+    def procrutres_align(self, reference: torch.Tensor | None = None):
+        if reference is None:
+            reference = self.chains["loadings"][0, -1, ...]
+        U, _, V = torch.linalg.svd(self.chains["loadings"].mT @ reference)
+        U = U @ V
+        self.chains["loadings"] = self.chains["loadings"] @ U
+        for k in [
+            "smgp_factors.nontarget_process",
+            "smgp_factors.target_process",
+            "smgp_factors.mixing_process",
+            "smgp_scaling.nontarget_process",
+            "smgp_scaling.target_process",
+            "smgp_scaling.mixing_process",
+        ]:
+            self.chains[k] = (self.chains[k].mT @ U.mT).mT
+        self._aligned = True
+
     def check_concordance(self, loadings: torch.Tensor | None = None):
         # choose last entry of first chain as reference
         if loadings is None:  # align to self
