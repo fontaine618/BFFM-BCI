@@ -359,8 +359,8 @@ class BFFMPredict:
             }
         }
         if drop_component is not None:
-            # only need to set loading to zero, since it multiplies everything else
-            variables["loadings"][:, drop_component] = 0.
+            variables["smgp_scaling.mixing_process"][:, drop_component, :] = 0.
+            variables["smgp_factors.mixing_process"][:, drop_component, :] = 0.
         bffmodel.set(**variables)
         bffmodel.generate_local_variables()
 
