@@ -359,8 +359,11 @@ class BFFMPredict:
             }
         }
         if drop_component is not None:
-            variables["smgp_scaling"]["mixing_process"][:, drop_component, :] = 0.
-            variables["smgp_factors"]["mixing_process"][:, drop_component, :] = 0.
+            if not isinstance(drop_component, list):
+                drop_component = [drop_component]
+            for k in drop_component:
+                variables["smgp_scaling"]["mixing_process"][:, k, :] = 0.
+                variables["smgp_factors"]["mixing_process"][:, k, :] = 0.
         bffmodel.set(**variables)
         bffmodel.generate_local_variables()
 
