@@ -346,16 +346,16 @@ class BFFMPredict:
     def update_model(self, bffmodel, sample_idx, drop_component):
         variables = {
             "loadings": self.variables["loadings"][sample_idx, :, :].clone().detach(),
-            "observation_variance": self.variables["observation_variance"][sample_idx, :],
+            "observation_variance": self.variables["observation_variance"][sample_idx, :].clone().detach(),
             "smgp_factors": {
-                "nontarget_process": self.variables["smgp_factors.nontarget_process"][sample_idx, :, :],
-                "target_process": self.variables["smgp_factors.target_process"][sample_idx, :, :],
-                "mixing_process": self.variables["smgp_factors.mixing_process"][sample_idx, :, :],
+                "nontarget_process": self.variables["smgp_factors.nontarget_process"][sample_idx, :, :].clone().detach(),
+                "target_process": self.variables["smgp_factors.target_process"][sample_idx, :, :].clone().detach(),
+                "mixing_process": self.variables["smgp_factors.mixing_process"][sample_idx, :, :].clone().detach(),
             },
             "smgp_scaling": {
-                "nontarget_process": self.variables["smgp_scaling.nontarget_process"][sample_idx, :, :],
-                "target_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :],
-                "mixing_process": self.variables["smgp_scaling.mixing_process"][sample_idx, :, :],
+                "nontarget_process": self.variables["smgp_scaling.nontarget_process"][sample_idx, :, :].clone().detach(),
+                "target_process": self.variables["smgp_scaling.target_process"][sample_idx, :, :].clone().detach(),
+                "mixing_process": self.variables["smgp_scaling.mixing_process"][sample_idx, :, :].clone().detach(),
             }
         }
         if drop_component is not None:
