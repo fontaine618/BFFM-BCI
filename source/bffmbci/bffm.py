@@ -159,7 +159,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
-				0.5,
+				0.,
 				0.
 			)
 		elif covariance == "dynamic":
@@ -167,7 +167,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
-				0.5,
+				0.,
 				0.
 			)
 		else:
@@ -203,7 +203,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_factor_processes,
 				kernel_tgp_factor_processes,
-				0.5,
+				0.,
 				0.
 			)
 
@@ -400,12 +400,18 @@ class BFFModel:
 		self.variables["observation_variance"].data = observation_variance
 		self.variables["factor_processes"].data = sfactors.clone()
 		# update smgp_factors: first set everything to constant, then update with the factors
-		self.variables["smgp_factors"].nontarget_process.data.zero_()
-		self.variables["smgp_factors"].target_process.data.zero_()
-		self.variables["smgp_factors"].mixing_process.data.fill_(0.5)
-		self.variables["smgp_scaling"].nontarget_process.data.fill_(0.)
-		self.variables["smgp_scaling"].target_process.data.fill_(0.)
-		self.variables["smgp_scaling"].mixing_process.data.fill_(0.5)
+		# self.variables["smgp_factors"].nontarget_process.data.zero_()
+		# self.variables["smgp_factors"].target_process.data.zero_()
+		# self.variables["smgp_factors"].mixing_process.data.fill_(0.5)
+		# self.variables["smgp_scaling"].nontarget_process.data.fill_(0.)
+		# self.variables["smgp_scaling"].target_process.data.fill_(0.)
+		# self.variables["smgp_scaling"].mixing_process.data.fill_(0.5)
+		self.variables["smgp_factors"].nontarget_process.fill_mean()
+		self.variables["smgp_factors"].target_process.fill_mean()
+		self.variables["smgp_factors"].mixing_process.fill_mean()
+		self.variables["smgp_scaling"].nontarget_process.fill_mean()
+		self.variables["smgp_scaling"].target_process.fill_mean()
+		self.variables["smgp_scaling"].mixing_process.fill_mean()
 		self.sample(["mean_factor_processes"])
 		self.sample(["smgp_factors"])
 		self.sample(["mean_factor_processes"])

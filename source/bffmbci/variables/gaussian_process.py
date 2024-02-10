@@ -67,7 +67,6 @@ class GaussianProcess(Variable):
 			"step_size": [0.001 for _ in range(self._dim[0])],
 		}
 
-
 	def generate(self):
 		dist = MultivariateNormal(loc=torch.zeros(self._dim[1]), scale_tril=self.kernel.chol)
 		self._set_value(dist.sample((self._dim[0], )) + self.mean.data)
@@ -114,6 +113,9 @@ class GaussianProcess(Variable):
 
 	def _sample_k(self, dist, value):
 		return dist.sample()
+
+	def fill_mean(self):
+		self._set_value(self.mean.data)
 
 	# def _get_log_prob(self, k, value):
 	# 	llk = self.get_log_likelihood(value)
