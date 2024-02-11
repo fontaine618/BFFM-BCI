@@ -204,3 +204,6 @@ class ConstantVariable(Variable):
 
 	def sample(self, store=True):
 		self._set_value(self._value, store=store)
+
+	def fill_mean(self):
+		self._set_value(self._value)
