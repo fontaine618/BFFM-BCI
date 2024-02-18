@@ -141,10 +141,10 @@ class BFFModel:
 
 		# Loading processes prior
 		p = parms["kernel_gp_loading_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"])*p[2]))
+		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
 		kernel_gp_loading_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
 		p = parms["kernel_tgp_loading_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"])*p[2]))
+		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
 		kernel_tgp_loading_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
 		if covariance == "dynamic_regression":
 			smgp_scaling = SMGP(
@@ -185,10 +185,10 @@ class BFFModel:
 
 		# Mean factor processes prior
 		p = parms["kernel_gp_factor_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"])*p[2]))
+		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
 		kernel_gp_factor_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
 		p = parms["kernel_tgp_factor_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"])*p[2]))
+		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
 		kernel_tgp_factor_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
 		if mean_regression:
 			smgp_factors = SMGP(
@@ -219,7 +219,7 @@ class BFFModel:
 
 		# Factor processes
 		p = parms["kernel_gp_factor"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["n_timepoints"])*p[2]))
+		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["n_timepoints"]) ** p[2]))
 		kernel_factor = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
 		factor_processes = NoisyProcesses(
 			mean=mean_factor_processes,
