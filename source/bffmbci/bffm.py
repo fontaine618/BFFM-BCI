@@ -219,7 +219,7 @@ class BFFModel:
 
 		# Factor processes
 		p = parms["kernel_gp_factor"]
-		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
+		tmat = _build_kernel_matrix(dims["n_timepoints"], p[1], p[2], p[0])
 		kernel_factor = Kernel.from_covariance_matrix(tmat)
 		factor_processes = NoisyProcesses(
 			mean=mean_factor_processes,
