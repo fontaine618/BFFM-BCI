@@ -141,10 +141,10 @@ class BFFModel:
 
 		# Loading processes prior
 		p = parms["kernel_gp_loading_processes"]
-		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
 		kernel_gp_loading_processes = Kernel.from_covariance_matrix(tmat)
 		p = parms["kernel_tgp_loading_processes"]
-		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
 		kernel_tgp_loading_processes = Kernel.from_covariance_matrix(tmat)
 		if covariance == "dynamic_regression":
 			smgp_scaling = SMGP(
@@ -185,10 +185,10 @@ class BFFModel:
 
 		# Mean factor processes prior
 		p = parms["kernel_gp_factor_processes"]
-		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
 		kernel_gp_factor_processes = Kernel.from_covariance_matrix(tmat)
 		p = parms["kernel_tgp_factor_processes"]
-		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
 		kernel_tgp_factor_processes = Kernel.from_covariance_matrix(tmat)
 		if mean_regression:
 			smgp_factors = SMGP(
@@ -219,7 +219,7 @@ class BFFModel:
 
 		# Factor processes
 		p = parms["kernel_gp_factor"]
-		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
 		kernel_factor = Kernel.from_covariance_matrix(tmat)
 		factor_processes = NoisyProcesses(
 			mean=mean_factor_processes,
