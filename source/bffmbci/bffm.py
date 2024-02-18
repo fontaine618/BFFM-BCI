@@ -141,11 +141,11 @@ class BFFModel:
 
 		# Loading processes prior
 		p = parms["kernel_gp_loading_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
-		kernel_gp_loading_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		kernel_gp_loading_processes = Kernel.from_covariance_matrix(tmat)
 		p = parms["kernel_tgp_loading_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
-		kernel_tgp_loading_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		kernel_tgp_loading_processes = Kernel.from_covariance_matrix(tmat)
 		if covariance == "dynamic_regression":
 			smgp_scaling = SMGP(
 				dims["latent_dim"],
@@ -185,11 +185,11 @@ class BFFModel:
 
 		# Mean factor processes prior
 		p = parms["kernel_gp_factor_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
-		kernel_gp_factor_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		kernel_gp_factor_processes = Kernel.from_covariance_matrix(tmat)
 		p = parms["kernel_tgp_factor_processes"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["stimulus_window"]) ** p[2]))
-		kernel_tgp_factor_processes = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		kernel_tgp_factor_processes = Kernel.from_covariance_matrix(tmat)
 		if mean_regression:
 			smgp_factors = SMGP(
 				dims["latent_dim"],
@@ -219,8 +219,8 @@ class BFFModel:
 
 		# Factor processes
 		p = parms["kernel_gp_factor"]
-		tmat = scipy.linalg.toeplitz(p[0] ** (np.arange(dims["n_timepoints"]) ** p[2]))
-		kernel_factor = Kernel.from_covariance_matrix(torch.Tensor(tmat) * p[1])
+		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[0], p[2])
+		kernel_factor = Kernel.from_covariance_matrix(tmat)
 		factor_processes = NoisyProcesses(
 			mean=mean_factor_processes,
 			kernel=kernel_factor
@@ -524,3 +524,12 @@ def _create_sequence_data(n_characters, n_repetitions, n_stimulus):
 	target_stimulus = target_stimulus.repeat_interleave(n_repetitions, 0)
 	target_stimulus = F.one_hot(target_stimulus, num_classes=n_stimulus[0]).max(1).values
 	return stimulus_order, target_stimulus
+
+
+def _build_kernel_matrix(dim, scale=1., power=1., correlation=0.8):
+	t = torch.arange(dim).float()
+	diff = t.unsqueeze(0) - t.unsqueeze(1)
+	diff = diff.abs() ** power
+	kernel = correlation ** diff
+	kernel = kernel * scale
+	return kernel
