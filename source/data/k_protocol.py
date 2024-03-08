@@ -142,11 +142,14 @@ class KProtocol:
         filtered = torch.Tensor(scipy.signal.lfilter(*bandpass, signal.T).T)
 
         # MA smoothing
-        smoothed = torch.nn.functional.avg_pool1d(
-            filtered.T,
-            downsample-1, 1,
-            padding=(downsample-2)//2, count_include_pad=False
-        ).T
+        if downsample > 1:
+            smoothed = torch.nn.functional.avg_pool1d(
+                filtered.T,
+                downsample-1, 1,
+                padding=(downsample-2)//2, count_include_pad=False
+            ).T
+        else:
+            smoothed = filtered
 
         # get sequences and stimuli
         stimulus_data = _identify_sequences_and_stimuli(states, window, sampling_rate)
