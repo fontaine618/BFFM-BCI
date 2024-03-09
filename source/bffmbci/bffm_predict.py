@@ -118,43 +118,42 @@ class BFFMPredict:
         :param which_first: sequence, sample
         :return: nc x nr x L
         """
+
+        # aggregation across sequences
         if which_first == "sequence":
             log_prob = torch.cumsum(llk_long, dim=1)
-            if sample_mean == "arithmetic":
-                log_prob = torch.logsumexp(log_prob, dim=3) - math.log(llk_long.shape[3])
-            elif sample_mean == "geometric":
-                log_prob = torch.mean(log_prob, dim=3)
-            elif sample_mean == "harmonic":
-                log_prob = -torch.logsumexp(-log_prob, dim=3) + math.log(llk_long.shape[3])
-            elif sample_mean == "psis":
-                log_weights = torch.stack([
-                    torch.Tensor(az.psislw(-log_prob[:, i, :, :].cpu().numpy(), reff=1.)[0])
-                    for i in range(log_prob.shape[1])
-                ], dim=1)
-                log_weights += log_prob
-                log_prob = torch.logsumexp(log_weights, dim=3)
-            else:
-                raise ValueError(f"Unknown sample_mean {sample_mean}")
         elif which_first == "sample":
-            if sample_mean == "arithmetic":
-                log_prob = torch.logsumexp(llk_long, dim=3) - math.log(llk_long.shape[3])
-            elif sample_mean == "geometric":
-                log_prob = torch.mean(llk_long, dim=3)
-            elif sample_mean == "harmonic":
-                log_prob = -torch.logsumexp(-llk_long, dim=3) + math.log(llk_long.shape[3])
-            elif sample_mean == "psis":
-                log_weights = torch.stack([
-                    torch.Tensor(az.psislw(-llk_long[:, i, :, :].cpu().numpy(), reff=1.)[0])
-                    for i in range(llk_long.shape[1])
-                ], dim=1)
-                log_weights += llk_long
-                log_prob = torch.logsumexp(log_weights, dim=3)
-            else:
-                raise ValueError(f"Unknown sample_mean {sample_mean}")
-            log_prob = torch.cumsum(log_prob, dim=1)
+            log_prob = llk_long
         else:
             raise ValueError(f"Unknown which_first {which_first}")
-        return log_prob - torch.logsumexp(log_prob, dim=2, keepdim=True)
+
+        # standardize to probabilities
+        log_prob -= torch.logsumexp(log_prob, dim=2, keepdim=True)
+
+        # aagregation across samples
+        if sample_mean == "arithmetic":
+            log_prob = torch.logsumexp(log_prob, dim=3) - math.log(llk_long.shape[3])
+        elif sample_mean == "geometric":
+            log_prob = torch.mean(log_prob, dim=3)
+        elif sample_mean == "harmonic":
+            log_prob = -torch.logsumexp(-log_prob, dim=3) + math.log(llk_long.shape[3])
+        elif sample_mean == "psis":
+            log_weights = torch.stack([
+                torch.Tensor(az.psislw(-log_prob[:, i, :, :].cpu().numpy(), reff=1.)[0])
+                for i in range(log_prob.shape[1])
+            ], dim=1)
+            log_weights += log_prob
+            log_prob = torch.logsumexp(log_weights, dim=3)
+        else:
+            raise ValueError(f"Unknown sample_mean {sample_mean}")
+
+        # aggregation across sequences
+        if which_first == "sample":
+            log_prob = torch.cumsum(log_prob, dim=1)
+
+        # standardize to probabilities
+        log_prob -= torch.logsumexp(log_prob, dim=2, keepdim=True)
+        return log_prob
 
     def get_predictions(
             self,
