@@ -12,6 +12,7 @@ def bffm_initializer(
 		latent_dim: int,
 		stimulus_window: int,
 		stimulus_to_stimulus_interval: int,
+		weighted: bool = False
 	):
 		N, E, T = sequences.shape
 		w = stimulus_window
@@ -20,10 +21,8 @@ def bffm_initializer(
 		# we create a dummy SMGP object and put the variance
 		dummy_kernel = Kernel.from_covariance_matrix(torch.eye(w))
 		smgp = SMGP(K, dummy_kernel, dummy_kernel)
-		# target and nontarget has variance 1, mixing has variance 0.733
-		# hence nontarget has variance 1 and target has variance 1.733
 		smgp.nontarget_process._value = torch.ones(K, w)
-		smgp.target_process._value = torch.ones(K, w) * 1.733
+		smgp.target_process._value = torch.ones(K, w) * 6. # upweight the target subsequences by 12/2
 		smgp.mixing_process._value = torch.ones(K, w)
 		sequence_data = SequenceData(
 			order=stimulus_order,
@@ -43,7 +42,10 @@ def bffm_initializer(
 		# X = sequences.reshape(-1, E)  # inverse is .reshape(N, T, E)
 		X = torch.vstack([sequences[i, :, :].T for i in range(sequences.shape[0])])
 		fa = WFA(K)
-		fa.fit(X) #, W)
+		if weighted:
+			fa.fit(X, W)
+		else:
+			fa.fit(X)
 		loadings = fa._loadings
 		observation_variance = fa._observation_variance
 		factors = fa._m1

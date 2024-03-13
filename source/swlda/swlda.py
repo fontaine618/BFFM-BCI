@@ -52,7 +52,7 @@ def swlda(responses, type, sampling_rate, response_window, decimation_frequency,
         index = indices[i]
         downsampled[:, i, :] = \
             responses[:, index:index + dec_factor, :].mean(axis = 1)
-    print(downsampled.shape)
+    # print(downsampled.shape)
     # ``downsampled'' is now (trials x indices.size x channels).
 
     target = type.nonzero()[0]
