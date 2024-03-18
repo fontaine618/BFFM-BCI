@@ -54,6 +54,7 @@ class BFFModelMAP:
             mean_regression=mean_regression
         )
         self._eval = False
+        self._optimizer = None
 
     def _initialize_prior_parameters(self, **kwargs):
         prior_parameters = {
@@ -303,7 +304,7 @@ class BFFModelMAP:
         log_proba = 0.
         L = self.variables["loadings"]
         H = self.variables["heterogeneities"]
-        log_proba += torch.distributions.Normal(0., H).log_prob(L).sum()
+        log_proba += torch.distributions.Normal(0., H.sqrt()).log_prob(L).sum()
         gamma = self.prior_parameters["heterogeneities"]
         log_proba += InverseGamma(gamma / 2, gamma / 2).log_prob(H).sum()
         return log_proba
@@ -360,13 +361,14 @@ class BFFModelMAP:
         return llk + prior + factor
 
     def fit(self, lr=0.1, max_iter=1000, tol=1e-6):
-        optimizer = torch.optim.Adam(self.variables.values(), lr=lr)
+        if self._optimizer is None:
+            self._optimizer = torch.optim.Adam(self.variables.values(), lr=lr)
         prevllk = self._log_likelihood().item()
         for i in range(max_iter):
-            optimizer.zero_grad()
+            self._optimizer.zero_grad()
             newllk = self._joint_log_proba()
             (-newllk).backward()
-            optimizer.step()
+            self._optimizer.step()
             if i % 10 == 0:
                 print(f"iter {i}: {newllk.item()}")
             if abs(newllk - prevllk) / abs(prevllk) < tol:
@@ -503,20 +505,21 @@ class BFFModelMAP:
     #     return log_proba
 
     def export_variables(self):
-        variables = {
-            "observation_variance": self.variables["log_observation_variance"].exp().detach().clone(),
-            "loadings": self.variables["loadings"].detach().clone(),
-            "heterogeneities": self.variables["heterogeneities"].detach().clone(),
-            "smgp_factors.nontarget_process": self.variables["factor_process.nontarget_signal"].detach().clone(),
-            "smgp_factors.target_process": self.variables["factor_process.target_signal"].detach().clone(),
-            "smgp_factors.mixing_process": torch.sigmoid(
-                self.variables["factor_process.logit_mixing_signal"].detach().clone()),
-            "smgp_scaling.nontarget_process": self.variables["scaling_process.nontarget_signal"].detach().clone(),
-            "smgp_scaling.target_process": self.variables["scaling_process.target_signal"].detach().clone(),
-            "smgp_scaling.mixing_process": torch.sigmoid(
-                self.variables["scaling_process.logit_mixing_signal"].detach().clone())
-        }
-        return variables
+        with torch.no_grad():
+            variables = {
+                "observation_variance": self.variables["log_observation_variance"].exp().detach().clone(),
+                "loadings": self.variables["loadings"].detach().clone(),
+                "heterogeneities": self.variables["heterogeneities"].detach().clone(),
+                "smgp_factors.nontarget_process": self.variables["factor_process.nontarget_signal"].detach().clone(),
+                "smgp_factors.target_process": self.variables["factor_process.target_signal"].detach().clone(),
+                "smgp_factors.mixing_process": torch.sigmoid(
+                    self.variables["factor_process.logit_mixing_signal"].detach().clone()),
+                "smgp_scaling.nontarget_process": self.variables["scaling_process.nontarget_signal"].detach().clone(),
+                "smgp_scaling.target_process": self.variables["scaling_process.target_signal"].detach().clone(),
+                "smgp_scaling.mixing_process": torch.sigmoid(
+                    self.variables["scaling_process.logit_mixing_signal"].detach().clone())
+            }
+            return variables
 
     def predict(self, n_samples=100):
         with torch.no_grad():
