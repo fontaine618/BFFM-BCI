@@ -371,6 +371,7 @@ def add_transformed_variables(chains):
         L = chains["loadings"]
         Lnorm = torch.linalg.norm(L, dim=-2, keepdim=True)
         chains["loadings.norm_one"] = L / Lnorm
+        chains["loadings.norm"] = Lnorm
     if "loadings" in chains and "shrinkage_factor" in chains:
         L = chains["loadings"]
         s = chains["shrinkage_factor"].unsqueeze(-2)
@@ -387,6 +388,13 @@ def add_transformed_variables(chains):
         chains["smgp_factors.difference_process"] = \
             chains["smgp_factors.target_signal"] - \
             chains["smgp_factors.nontarget_process"]
+        #rescaled by norm
+        chains["smgp_factors.target_signal.rescaled"] = \
+            chains["smgp_factors.target_signal"] * chains["loadings.norm"].movedim(-1, -2)
+        chains["smgp_factors.nontarget_process.rescaled"] = \
+            chains["smgp_factors.nontarget_process"] * chains["loadings.norm"].movedim(-1, -2)
+        chains["smgp_factors.difference_process.rescaled"] = \
+            chains["smgp_factors.difference_process"] * chains["loadings.norm"].movedim(-1, -2)
     # Scaling process global: target signal and difference process
     if "smgp_scaling.nontarget_process" in chains and \
             "smgp_scaling.target_process" in chains and \
