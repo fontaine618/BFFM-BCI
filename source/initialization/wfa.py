@@ -1,6 +1,6 @@
 import torch
 
-from initialization.varimax import varimax
+from .varimax import varimax
 
 
 class WFA:
