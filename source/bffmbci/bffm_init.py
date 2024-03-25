@@ -12,7 +12,8 @@ def bffm_initializer(
 		latent_dim: int,
 		stimulus_window: int,
 		stimulus_to_stimulus_interval: int,
-		weighted: bool = False
+		weighted: bool = False,
+		loadings: torch.Tensor = None
 	):
 		N, E, T = sequences.shape
 		w = stimulus_window
@@ -41,7 +42,7 @@ def bffm_initializer(
 		W = variance.reshape(-1)  # inverse is .reshape(N, T)
 		# X = sequences.reshape(-1, E)  # inverse is .reshape(N, T, E)
 		X = torch.vstack([sequences[i, :, :].T for i in range(sequences.shape[0])])
-		fa = WFA(K)
+		fa = WFA(K, loadings=loadings)
 		if weighted:
 			fa.fit(X, W)
 		else:

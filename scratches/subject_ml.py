@@ -29,7 +29,7 @@ os.makedirs(dir_results, exist_ok=True)
 
 # file
 type = "TRN"
-subject = "178" #str(sys.argv[1])
+subject = "155" #str(sys.argv[1])
 session = "001"
 name = f"K{subject}_{session}_BCI_{type}"
 filename = dir_data + name + ".mat"

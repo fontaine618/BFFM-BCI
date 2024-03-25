@@ -1,15 +1,19 @@
 import torch
 
+from initialization.varimax import varimax
+
 
 class WFA:
 
-	def __init__(self, latent_dim: int):
+	def __init__(self, latent_dim: int, loadings: torch.Tensor = None):
 		self._w = None
 		self._X = None
 		self._mean = None
 		self.n_features = None
 		self.n_samples = None
 		self.latent_dim = latent_dim
+		self._loadings = loadings
+		self._fixed_loadings = loadings is not None
 
 	def fit(self, X: torch.Tensor, w: torch.Tensor = None,
 	        tol: float = 1e-5, max_iter: int = 1000):
@@ -43,7 +47,8 @@ class WFA:
 		resid = var - evecs @ evecs.T
 		diag = resid.diag()
 
-		self._loadings = evecs
+		if self._loadings is None:
+			self._loadings = evecs
 		self._observation_variance = diag
 		self._e_step()
 
@@ -61,10 +66,11 @@ class WFA:
 			if abs(diff) < tol:
 				break
 		# post-processing
-		L, _ = _varimax(self._loadings)
-		self._loadings = L
-		order = self._loadings.norm(2, 0).argsort(descending=True)
-		self._loadings = self._loadings[:, order]
+		if not self._fixed_loadings:
+			L, _ = varimax(self._loadings)
+			self._loadings = L
+			order = self._loadings.norm(2, 0).argsort(descending=True)
+			self._loadings = self._loadings[:, order]
 		self._observation_variance.clamp_min_(1e-5)
 		self._e_step()  # run one more E-step to realign the factors
 		llk = self.log_likelihood()
@@ -91,8 +97,8 @@ class WFA:
 	def _m_step(self):
 		num = self._X.T @ self._m1
 		denum = self._m2.sum(0).inverse()
-		self._loadings = num @ denum
-		# TODO check this,
+		if not self._fixed_loadings:
+			self._loadings = num @ denum
 		Psi = self._X.T @ self._X - num @ self._loadings.T
 		Psi /= self.n_samples
 		self._observation_variance = torch.diag(Psi).clamp_min(1e-5)
@@ -144,24 +150,3 @@ class WFA:
 		return - 0.5 * (logdet + xPx - 2 * xPTz + trTPTzz).sum().item()
 
 
-def _varimax(loadings, gamma=1.0, q=20, tol=1e-6):
-	"""
-	Varimax rotation
-	:param loadings: (n_features, n_latent)
-	:param gamma: rotation parameter
-	:param q: number of iterations
-	:param tol: tolerance
-	:return: rotated loadings
-	"""
-	p, k = loadings.shape
-	R = torch.eye(k)
-	d = 0
-	for i in range(q):
-		d_old = d
-		loadings = loadings @ R
-		u, s, v = torch.svd(loadings.T @ (loadings ** 3 - (gamma / p) * (loadings ** 2).sum(0) * loadings))
-		R = u @ v
-		d = (s ** 2).sum()
-		if d_old != 0 and d / d_old < 1 + tol:
-			break
-	return loadings @ R, R

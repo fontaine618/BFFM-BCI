@@ -54,6 +54,7 @@ class BFFModelMAP:
             mean_regression=mean_regression
         )
         self._eval = False
+        self._sample = False
         self._optimizer = None
 
     def _initialize_prior_parameters(self, **kwargs):
@@ -260,7 +261,7 @@ class BFFModelMAP:
         L = self.variables["loadings"]
         scaling = self._scaling_superposition()
         self.variables["mean_factor_processes"] = self._factor_superposition()
-        if not self._eval:
+        if self._sample:
             z = torch.randn((N, K, T))
             chol = self._kernels["factors"].chol
             z = z @ chol.T
@@ -361,6 +362,7 @@ class BFFModelMAP:
         return llk + prior + factor
 
     def fit(self, lr=0.1, max_iter=1000, tol=1e-6):
+        self._sample = False
         if self._optimizer is None:
             self._optimizer = torch.optim.Adam(self.variables.values(), lr=lr)
         prevllk = self._log_likelihood().item()
@@ -375,7 +377,22 @@ class BFFModelMAP:
                 break
             prevllk = newllk.item()
 
-    def initialize(self, reverse=False, weighted=False):
+    def fit_post(self, lr=0.1, max_iter=1000, tol=1e-6):
+        self._sample = False
+        optimizer = torch.optim.Adam([self.variables["factor_processes"]], lr=lr)
+        prevllk = self._log_likelihood().item()
+        for i in range(max_iter):
+            optimizer.zero_grad()
+            newllk = self._joint_log_proba()
+            (-newllk).backward()
+            optimizer.step()
+            if i % 10 == 0:
+                print(f"iter {i}: {newllk.item()}")
+            if abs(newllk - prevllk) / abs(prevllk) < tol:
+                break
+            prevllk = newllk.item()
+
+    def initialize(self, reverse=False, weighted=False, loadings=None):
         # use WFA to find loadings and variance
         # the estimated factors will be used to initialize the processes below
         loadings, observation_variance, factors = bffm_initializer(
@@ -385,7 +402,8 @@ class BFFModelMAP:
             latent_dim=self._dimensions["latent_dim"],
             stimulus_window=self._dimensions["stimulus_window"],
             stimulus_to_stimulus_interval=self._dimensions["stimulus_to_stimulus_interval"],
-            weighted=weighted
+            weighted=weighted,
+            loadings=loadings
         )
         if reverse:
             loadings = loadings.flip(1)
@@ -410,11 +428,12 @@ class BFFModelMAP:
         # no gradients for all variables except factor processes
         for k, v in self.variables.items():
             if k != "factor_processes":
-                v.detach_()
-        # self.variables["factor_processes"] = torch.nn.Parameter(
-        #     self.variables["factor_processes"].data,
-        #     requires_grad=True
-        # )
+                v.requires_grad = False
+                # v.detach_()
+        self.variables["factor_processes"] = torch.nn.Parameter(
+            self.variables["factor_processes"].data,
+            requires_grad=True
+        )
 
     def update_data(
             self,
@@ -493,17 +512,6 @@ class BFFModelMAP:
 
         self._prepare_local_variables()
 
-    # def predict(self):
-    #     self._expand_data_for_prediction()
-    #     self.fit()
-    #     log_proba = self._log_likelihood_per_sequence()
-    #     log_proba += self._factor_log_proba_per_sequence()
-    #     N = self.original_data["sequences"].shape[0]
-    #     L = 36
-    #     log_proba = log_proba.reshape(N, L)
-    #     self._reset_original_data()
-    #     return log_proba
-
     def export_variables(self):
         with torch.no_grad():
             variables = {
@@ -513,29 +521,48 @@ class BFFModelMAP:
                 "smgp_factors.nontarget_process": self.variables["factor_process.nontarget_signal"].detach().clone(),
                 "smgp_factors.target_process": self.variables["factor_process.target_signal"].detach().clone(),
                 "smgp_factors.mixing_process": torch.sigmoid(
-                    self.variables["factor_process.logit_mixing_signal"].detach().clone()),
+                    self.variables["factor_process.logit_mixing_signal"].detach().clone()
+                ),
                 "smgp_scaling.nontarget_process": self.variables["scaling_process.nontarget_signal"].detach().clone(),
                 "smgp_scaling.target_process": self.variables["scaling_process.target_signal"].detach().clone(),
                 "smgp_scaling.mixing_process": torch.sigmoid(
-                    self.variables["scaling_process.logit_mixing_signal"].detach().clone())
+                    self.variables["scaling_process.logit_mixing_signal"].detach().clone()
+                ),
+                "factor_processes": self.variables["factor_processes"].detach().clone(),
+                "mean_factor_processes": self.variables["mean_factor_processes"].detach().clone()
             }
             return variables
 
-    def predict(self, n_samples=100):
+    def predict(self, method="maximize", **kwargs):
+        if method == "maximize":
+            return self._predict_maximize()
+        elif method == "sample":
+            return self._predict_sample(**kwargs)
+        else:
+            raise ValueError(f"Unknown prediction method: {method}")
+
+    def _predict_sample(self, n_samples=1000, mean="harmonic"):
         with torch.no_grad():
             combinations = self.combinations
             N = self._dimensions["n_sequences"]
             L = combinations.shape[0]
             J = 12
             log_proba = torch.zeros(N, L, n_samples)
+            self._sample = True
             self.eval()
             for l in range(L):
                 print(f"predicting combination {l+1}/{L}")
                 self.data["target_stimulus"] = combinations[l, :].expand(N, J)
                 for n in range(n_samples):
                     log_proba[:, l, n] = self._log_likelihood_per_sequence()
-                # self.fit()
-                # log_proba[:, l] = self._log_likelihood_per_sequence() + self._factor_log_proba_per_sequence()
+            if mean == "harmonic":
+                log_proba = -torch.logsumexp(-log_proba, dim=-1) + math.log(n_samples)
+            elif mean == "geometric":
+                log_proba = log_proba.mean(-1)
+            elif mean == "arithmetic":
+                log_proba = torch.logsumexp(log_proba, dim=-1) - math.log(log_proba.shape[-1])
+            else:
+                raise ValueError(f"Unknown mean method: {mean}")
             # log_prob = torch.zeros(N, L)
             # for l in range(L):
             #     for i in range(N):
@@ -543,10 +570,22 @@ class BFFModelMAP:
             #         log_weights = torch.Tensor(az.psislw(-log_prob_ni.cpu().numpy(), reff=1.)[0])
             #         log_weights += log_prob_ni
             #         log_prob[i, l] = torch.logsumexp(log_weights, dim=0)
-            # log_proba = log_prob
-            log_proba = -torch.logsumexp(-log_proba, dim=-1) + math.log(log_proba.shape[-1])
-            # log_proba = torch.logsumexp(log_proba, dim=-1) - math.log(log_proba.shape[-1])
             return log_proba
+
+    def _predict_maximize(self):
+        self._sample = False
+        combinations = self.combinations
+        N = self._dimensions["n_sequences"]
+        L = combinations.shape[0]
+        J = 12
+        log_proba = torch.zeros(N, L)
+        self.eval()
+        for l in range(L):
+            print(f"predicting combination {l+1}/{L}")
+            self.data["target_stimulus"] = combinations[l, :].expand(N, J)
+            self.fit_post()
+            log_proba[:, l] = self._log_likelihood_per_sequence() + self._factor_log_proba_per_sequence()
+        return log_proba
 
 
 

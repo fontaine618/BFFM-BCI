@@ -1,5 +1,6 @@
 import torch
 from .matrix_normal import MatrixNormal
+from ..initialization.varimax import varimax
 
 
 class NaiveBayesMatrixNormal:
@@ -27,3 +28,15 @@ class NaiveBayesMatrixNormal:
     def predict(self, X):
         log_prob = self.log_prob(X)
         return torch.nn.functional.log_softmax(log_prob, dim=1)[:, 1]
+
+    def construct_loadings(self, dim_nontarget: int = 2, dim_difference: int = 2):
+        _, S, Vh = torch.linalg.svd(self.models[0].mean, full_matrices=False)
+        nontarget = Vh[:dim_nontarget, :].T * S[:dim_nontarget].reshape(1, -1)
+        _, S, Vh = torch.linalg.svd(self.models[1].mean - self.models[0].mean, full_matrices=False)
+        diff = Vh[:dim_difference, :].T * S[:dim_difference].reshape(1, -1)
+        loadings = torch.hstack([nontarget, diff])
+        # sort columns by norm
+        norms = loadings.norm(dim=0)
+        idx = norms.argsort(descending=True)
+        loadings = loadings[:, idx]
+        return loadings
