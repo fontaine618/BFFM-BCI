@@ -151,7 +151,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
-				0.5,
+				0.,
 				0.
 			)
 		elif covariance == "static":
@@ -195,7 +195,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_factor_processes,
 				kernel_tgp_factor_processes,
-				0.5,
+				0.,
 				0.
 			)
 		else:
