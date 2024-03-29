@@ -10,7 +10,7 @@ from .variables import SequenceData, Superposition
 from .variables import SMGP, ConstantSMGP, SingleSMGP
 from .variables import GaussianObservations
 from .variables import ObservationVariance
-from .variables import Loadings
+from .variables import Loadings, CompoundSymmetryLoadings
 from .variables import Heterogeneities, SparseHetereogeneities
 from .variables import ShrinkageFactor, IdentityShrinkage
 from .variables import NoisyProcesses
@@ -58,20 +58,6 @@ class BFFModel:
 			covariance=covariance,
 			mean_regression=mean_regression
 		)
-		self._sampling_order = [
-			"factor_processes",
-			"mean_factor_processes",
-			"smgp_factors",
-
-			"loading_processes",
-			"smgp_scaling",
-
-			"loadings",
-			"shrinkage_factor",
-			"heterogeneities",
-
-			"observation_variance"
-		]
 
 	def filter(self, sequence_ids: torch.Tensor):
 		self._dimensions["n_sequences"] = len(sequence_ids)
@@ -128,10 +114,15 @@ class BFFModel:
 			)
 		else:
 			raise ValueError(f"Unknown shrinkage method: {shrinkage}.")
-		loadings = Loadings(
-			heterogeneities=heterogeneities,
-			shrinkage_factor=shrinkage_factor
-		)
+		if covariance == "compound_symmetry":
+			loadings = CompoundSymmetryLoadings(
+				n_channels=dims["n_channels"],
+			)
+		else:
+			loadings = Loadings(
+				heterogeneities=heterogeneities,
+				shrinkage_factor=shrinkage_factor
+			)
 
 		# Sequence data
 		sequence_data = SequenceData(
@@ -170,6 +161,18 @@ class BFFModel:
 				0.,
 				0.
 			)
+		elif covariance == "compound_symmetry":
+			smgp_scaling = SingleSMGP(
+				dims["latent_dim"],
+				kernel_gp_loading_processes,
+				kernel_tgp_loading_processes,
+				0.,
+				0.,
+				fixed_components=list(range(dims["n_channels"]))
+			)
+			smgp_scaling.nontarget_process.set_fixed_components(0.)
+			# smgp_scaling.target_process.set_fixed_components(0.)
+			# smgp_scaling.mixing_process.set_fixed_components(0.)
 		else:
 			raise ValueError(f"Unknown covariance method: {covariance}.")
 
@@ -184,6 +187,9 @@ class BFFModel:
 		loading_processes.name = "loading_processes"
 
 		# Mean factor processes prior
+		fixed_components = None
+		if covariance == "compound_symmetry":
+			fixed_components = [dims["n_channels"]]
 		p = parms["kernel_gp_factor_processes"]
 		tmat = _build_kernel_matrix(dims["stimulus_window"], p[1], p[2], p[0])
 		kernel_gp_factor_processes = Kernel.from_covariance_matrix(tmat)
@@ -196,7 +202,8 @@ class BFFModel:
 				kernel_gp_factor_processes,
 				kernel_tgp_factor_processes,
 				0.,
-				0.
+				0.,
+				fixed_components=fixed_components
 			)
 		else:
 			smgp_factors = ConstantSMGP(
@@ -206,6 +213,10 @@ class BFFModel:
 				0.,
 				0.
 			)
+		if covariance == "compound_symmetry":
+			smgp_factors.nontarget_process.set_fixed_components(0.)
+			smgp_factors.target_process.set_fixed_components(0.)
+			smgp_factors.mixing_process.set_fixed_components(0.)
 
 		# Mean factor processes
 		mean_factor_processes = Superposition(
@@ -249,7 +260,6 @@ class BFFModel:
 		mean_factor_processes.add_children(child=factor_processes, observations=factor_processes)
 		factor_processes.add_children(observations=observations)
 
-		# TODO: maybe this should be a plate?
 		self.variables = {
 			"observation_variance": observation_variance,
 			"heterogeneities": heterogeneities,
@@ -263,6 +273,31 @@ class BFFModel:
 			"factor_processes": factor_processes,
 			"observations": observations
 		}
+
+		if covariance == "compound_symmetry":
+			self._sampling_order = [
+				"factor_processes",
+				"mean_factor_processes",
+				"smgp_factors",
+				"loading_processes",
+				"smgp_scaling",
+				"loadings",
+				"observation_variance"
+			]
+			del self.variables["heterogeneities"]
+			del self.variables["shrinkage_factor"]
+		else:
+			self._sampling_order = [
+				"factor_processes",
+				"mean_factor_processes",
+				"smgp_factors",
+				"loading_processes",
+				"smgp_scaling",
+				"loadings",
+				"shrinkage_factor",
+				"heterogeneities",
+				"observation_variance"
+			]
 
 	@classmethod
 	def generate_from_dimensions(
@@ -498,6 +533,14 @@ class StaticCovarianceRegressionMean(BFFModel):
 
 	def __init__(self, **kwargs):
 		kwargs["covariance"] = "static"
+		kwargs["mean_regression"] = True
+		super().__init__(**kwargs)
+
+
+class CompoundSymmetryCovarianceRegressionMean(BFFModel):
+
+	def __init__(self, **kwargs):
+		kwargs["covariance"] = "compound_symmetry"
 		kwargs["mean_regression"] = True
 		super().__init__(**kwargs)
 

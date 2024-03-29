@@ -19,9 +19,10 @@ class GaussianProcess(Variable):
 
 	_dim_names = ["n_processes", "n_timepoints"]
 
-	def __init__(self, n_copies, kernel: Kernel, mean=0.):
+	def __init__(self, n_copies, kernel: Kernel, mean=0., fixed_components: list[int] | None = None):
 		dim = n_copies, kernel.shape[0]
 		self.kernel = kernel
+		self._fixed_components = fixed_components if fixed_components is not None else []
 		if isinstance(mean, float):
 			mean = torch.full(dim, mean)
 			self.mean = ObservedVariable(mean)
@@ -71,6 +72,10 @@ class GaussianProcess(Variable):
 		dist = MultivariateNormal(loc=torch.zeros(self._dim[1]), scale_tril=self.kernel.chol)
 		self._set_value(dist.sample((self._dim[0], )) + self.mean.data)
 
+	def set_fixed_components(self, value: float):
+		for k in self._fixed_components:
+			self._value[k, :] = value
+
 	def _parameters_from_child(self, k, value):
 		r"""
 		Should return child precision and means times precision to add to prior.
@@ -103,6 +108,8 @@ class GaussianProcess(Variable):
 	def direct_sample(self, store=True):
 		value = self._value.clone().detach()
 		for k in range(self._dim[0]):
+			if k in self._fixed_components:
+				continue
 			c, m = self._get_posterior(k, value)
 			dist = self._dist(mean=m, covariance=c)
 			value[k, :] = self._sample_k(dist, self.data[k, :])
@@ -147,6 +154,8 @@ class GaussianProcess(Variable):
 	def mala_sample(self, store=True):
 		value = self._value.clone().detach()
 		for k in range(self._dim[0]):
+			if k in self._fixed_components:
+				continue
 			logpi, grad = self._get_log_prob_and_grad(k, value)
 			step_size = self._mala["step_size"][k]
 			vk = value[k, :].clone().detach()
@@ -253,6 +262,8 @@ class GaussianProcess(Variable):
 		value = self._value.clone().detach()
 		ogvalue = self._value.clone().detach()
 		for k in range(self._dim[0]):
+			if k in self._fixed_components:
+				continue
 			# get posterior (will be the proposal distribution)
 			c, m = self._get_posterior(k, value)
 			chol = torch.linalg.cholesky(c)
@@ -318,6 +329,8 @@ class GaussianProcess(Variable):
 		ogvalue = self._value.clone().detach()
 		chol = self.kernel.chol
 		for k in range(self._dim[0]):
+			if k in self._fixed_components:
+				continue
 			vk = value[k, :].clone().detach()
 			sk = self._rwmh["log_scale"][k]
 			proposal = vk + math.exp(sk / 2) * torch.randn(self._dim[1]) @ chol.T
@@ -369,8 +382,8 @@ class GaussianProcess(Variable):
 
 class TruncatedGaussianProcess01(GaussianProcess):
 
-	def __init__(self, n_copies, kernel: Kernel, mean=0.5):
-		super().__init__(n_copies, kernel, mean)
+	def __init__(self, n_copies, kernel: Kernel, mean=0.5, fixed_components: list[int] | None = None):
+		super().__init__(n_copies, kernel, mean, fixed_components)
 		# self.sample = self.direct_sample
 
 	def _dist(self, mean, covariance):
@@ -379,6 +392,8 @@ class TruncatedGaussianProcess01(GaussianProcess):
 	def generate(self):
 		value = self.mean.data.clone().detach()
 		for k in range(value.shape[0]):
+			if k in self._fixed_components:
+				continue
 			dist = TruncatedMultivariateGaussian(mean=self.mean.data[k, :], covariance=self.kernel.cov)
 			value[k, :] = dist.sample(self.mean.data[k, :])
 		self._set_value(value)
@@ -406,6 +421,8 @@ class NonnegativeGaussianProcess(GaussianProcess):
 	def generate(self):
 		value = self.mean.data.clone().detach()
 		for k in range(value.shape[0]):
+			if k in self._fixed_components:
+				continue
 			dist = TruncatedMultivariateGaussian(mean=self.mean.data[k, :], covariance=self.kernel.cov,
 			                                     lower=0., upper=100.)
 			value[k, :] = dist.sample(self.mean.data[k, :])

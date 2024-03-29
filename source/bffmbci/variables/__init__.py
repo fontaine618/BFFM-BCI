@@ -8,3 +8,4 @@ from .plate import Plate
 from .smpg import SMGP, ConstantSMGP, SingleSMGP
 from .superposition import Superposition
 from .noisy_process import NoisyProcesses
+from .compound_symmetry import CompoundSymmetryLoadings

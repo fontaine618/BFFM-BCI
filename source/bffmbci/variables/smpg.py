@@ -27,20 +27,22 @@ class SMGP(Plate):
 			kernel_tgp: Kernel,
 			mean_tgp=0.5,
 			mean_gp=0.,
+			fixed_components: list[int] | None = None
 	):
 		self.nontarget_process: GaussianProcess | None = None
 		self.target_process: GaussianProcess | None = None
 		self.mixing_process: TruncatedGaussianProcess01 | None = None
 		self.superposition = None
+		self._fixed_components = fixed_components if fixed_components is not None else []
 		super().__init__(
 			nontarget_process=GaussianProcess(
-				n_copies=n_latent, kernel=kernel_gp, mean=mean_gp
+				n_copies=n_latent, kernel=kernel_gp, mean=mean_gp, fixed_components=fixed_components
 			),
 			target_process=GaussianProcess(
-				n_copies=n_latent, kernel=kernel_gp, mean=mean_gp
+				n_copies=n_latent, kernel=kernel_gp, mean=mean_gp, fixed_components=fixed_components
 			),
 			mixing_process=TruncatedGaussianProcess01(
-				n_copies=n_latent, kernel=kernel_tgp, mean=mean_tgp
+				n_copies=n_latent, kernel=kernel_tgp, mean=mean_tgp, fixed_components=fixed_components
 			)
 		)
 		self.nontarget_process.name = "nontarget_process"
@@ -88,8 +90,9 @@ class SingleSMGP(SMGP):
 			kernel_tgp: Kernel,
 			mean_tgp=0.5,
 			mean_gp=0.,
+			fixed_components: list[int] | None = None
 	):
-		super(SingleSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp)
+		super(SingleSMGP, self).__init__(n_latent, kernel_gp, kernel_tgp, mean_tgp, mean_gp, fixed_components)
 		self.mixing_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
 		self.target_process = ConstantVariable(torch.zeros_like(self.mixing_process.data))
 		self.mixing_process.name = "mixing_process"
