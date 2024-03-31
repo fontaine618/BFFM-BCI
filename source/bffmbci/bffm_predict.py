@@ -123,7 +123,7 @@ class BFFMPredict:
         if which_first == "sequence":
             log_prob = torch.cumsum(llk_long, dim=1)
         elif which_first == "sample":
-            log_prob = llk_long
+            log_prob = llk_long.detach().clone()
         else:
             raise ValueError(f"Unknown which_first {which_first}")
 
@@ -132,11 +132,11 @@ class BFFMPredict:
 
         # aagregation across samples
         if sample_mean == "arithmetic":
-            log_prob = torch.logsumexp(log_prob, dim=3) - math.log(llk_long.shape[3])
+            log_prob = torch.logsumexp(log_prob, dim=3) - math.log(log_prob.shape[3])
         elif sample_mean == "geometric":
             log_prob = torch.mean(log_prob, dim=3)
         elif sample_mean == "harmonic":
-            log_prob = -torch.logsumexp(-log_prob, dim=3) + math.log(llk_long.shape[3])
+            log_prob = -torch.logsumexp(-log_prob, dim=3) + math.log(log_prob.shape[3])
         elif sample_mean == "psis":
             log_weights = torch.stack([
                 torch.Tensor(az.psislw(-log_prob[:, i, :, :].cpu().numpy(), reff=1.)[0])
