@@ -33,6 +33,8 @@ class CompoundSymmetryLoadings(Variable):
 
 	def __init__(self, n_channels: int):
 		super().__init__((n_channels, n_channels+1), store=True, init=None)
+		self.observations = None
+		self.observation_variance = None
 
 	def generate(self):
 		self._set_value(torch.hstack([
@@ -41,7 +43,18 @@ class CompoundSymmetryLoadings(Variable):
 		]))
 
 	def sample(self, store=True):
-		self._set_value(torch.hstack([
-			torch.eye(self.shape[0]),
-			torch.ones(self.shape[0], 1)
-		]), store=store)
+		Theta = self.data
+		eta = self.observations.loading_times_factor_processes
+		sig2 = self.observation_variance.data
+		outer = torch.einsum("nkt, njt -> kj", eta, eta)
+		x = self.observations.data
+		for e in range(self.shape[0]):
+			prec = outer / sig2[e]
+			prec_times_mean = torch.einsum("nt, nkt -> k", x[:, e, :], eta) / sig2[e]
+			cov = torch.inverse(prec)
+			mean = prec_times_mean @ cov
+			dist = MultivariateNormal(loc=mean, covariance_matrix=cov)
+			Theta[e, :] = dist.sample()
+		Theta[:, :-1] = torch.eye(self.shape[0])
+		Theta[:, -1] = Theta[:, -1].mean()
+		self._set_value(Theta, store=store)

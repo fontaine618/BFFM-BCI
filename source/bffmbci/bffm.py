@@ -162,15 +162,22 @@ class BFFModel:
 				0.
 			)
 		elif covariance == "compound_symmetry":
-			smgp_scaling = SingleSMGP(
+			smgp_scaling = ConstantSMGP(
 				dims["latent_dim"],
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
 				0.,
-				0.,
-				fixed_components=list(range(dims["n_channels"]))
+				0.
 			)
-			smgp_scaling.nontarget_process.set_fixed_components(0.)
+			# smgp_scaling = SingleSMGP(
+			# 	dims["latent_dim"],
+			# 	kernel_gp_loading_processes,
+			# 	kernel_tgp_loading_processes,
+			# 	0.,
+			# 	0.,
+			# 	fixed_components=list(range(dims["n_channels"]))
+			# )
+			# smgp_scaling.nontarget_process.set_fixed_components(0.)
 			# smgp_scaling.target_process.set_fixed_components(0.)
 			# smgp_scaling.mixing_process.set_fixed_components(0.)
 		else:
