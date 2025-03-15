@@ -1,34 +1,11 @@
-To do
-=====
+Implementations
+===============
 
-[ ] BCI utility & another metric i don't recall
-[ ] DIC or BF / TEST
-[ ] Posterior predictive check, bayesian p-value
-     - check literature for important statistics
-     - P300 feature extractions
- https://projecteuclid.org/journals/annals-of-statistics/volume-22/issue-3/Posterior-Predictive-p-Values/10.1214/aos/1176325622.full
-https://pubmed.ncbi.nlm.nih.gov/19174332/
-www.stat.columbia.edu/~gelman/research/published/A6n41.pdf
-[ ] pre-estimate smoothness to choose a parameter
-[ ] EEGNet https://github.com/vlawhern/arl-eegmodels/blob/master/examples/ERP.py
+- bffmbci: out proposed methodology
+- eegnet: EEGNet (Lawhern et al., 2018)
+- nb_mn: Bayes classifier with matrix normals
+- swld: swLDA (Donchin et al, 2008; Krusienski et al., 2008)
 
-
-Notes for next meeting
-======================
-Ran the experiment by reversing the order of the initialization
-- Basically what I expected: the initialization dictates the result,
-  and the prior has almost no effect (some small shrinkage).
-  The posterior for the shrinkage factor is not longer decreasing.
-  Turns out a1 should be chosen to be 1 instead
-
-Backlog
-=======
-
-
-Commands
-========
-
-ssh simon@192.168.0.208
-scp <files> simon@simfont:/home/simon/Documents/BCI/experiments/test3/chains
-# get from GL
-scp simfont@greatlakes-xfer.arc-ts.umich.edu:./Documents/BCI/experiments/k114/chains/* ./experiments/k114/chains
+- data: some utility functions to load the data
+- initalization: some utility functions to initialize the models
+- results: some utility functions to compute metrics
