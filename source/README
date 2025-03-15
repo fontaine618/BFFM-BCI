@@ -1,0 +1,11 @@
+Implementations
+===============
+
+- bffmbci: out proposed methodology
+- eegnet: EEGNet (Lawhern et al., 2018)
+- nb_mn: Bayes classifier with matrix normals
+- swld: swLDA (Donchin et al, 2008; Krusienski et al., 2008)
+
+- data: some utility functions to load the data
+- initalization: some utility functions to initialize the models
+- results: some utility functions to compute metrics
