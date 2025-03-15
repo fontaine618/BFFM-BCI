@@ -1,5 +1,10 @@
+- pyproject.toml details all the dependencies required to run the experiments.
+- The pypoetry package can also be used for management: the poetry.lock file is also included.
+- experiments contains the BCI-Experiments repo
+- K_protocal contains the real data
+
 Implementations
-===============
+---------------
 
 - bffmbci: out proposed methodology
 - eegnet: EEGNet (Lawhern et al., 2018)
