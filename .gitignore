@@ -3,3 +3,4 @@ venv
 *.chain
 .ruff_cache/
 .idea
+bci/
