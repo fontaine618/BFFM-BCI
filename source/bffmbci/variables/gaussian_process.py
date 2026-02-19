@@ -65,7 +65,7 @@ class GaussianProcess(Variable):
 		self._mala = {
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
-			"step_size": [0.001 for _ in range(self._dim[0])],
+			"step_size": [0.00001 for _ in range(self._dim[0])],
 		}
 
 	def generate(self):
@@ -124,32 +124,36 @@ class GaussianProcess(Variable):
 	def fill_mean(self):
 		self._set_value(self.mean.data)
 
-	# def _get_log_prob(self, k, value):
-	# 	llk = self.get_log_likelihood(value)
-	# 	log_prior = self._prior_dist.log_prob(value)[k]
-	# 	return llk + log_prior
-	#
-	# def _get_log_prob_and_grad(self, k, value):
-	# 	vk = torch.nn.Parameter(value[k, :], requires_grad=True)
-	# 	value[k, :] = vk
-	# 	logpi = self._get_log_prob(k, value)
-	# 	logpi.backward(retain_graph=True)
-	# 	grad = vk.grad
-	# 	return logpi.detach(), grad.detach()
-
 	def _get_log_prob_and_grad(self, k, value):
-		z = value.clone().detach()
-		vk = torch.nn.Parameter(z[k, :], requires_grad=True)
+		vk = torch.nn.Parameter(value[k, :], requires_grad=True)
 
 		def f(zk):
+			z = value.clone()
 			z[k, :] = zk
-			llk = self.get_log_likelihood(value)
-			log_prior = self._prior_dist.log_prob(value)[k]
+			llk = self.get_log_likelihood(z)
+			log_prior = self._prior_dist.log_prob(z)[k]
 			return llk + log_prior
 
 		L = jacobian(f, vk, strategy="forward-mode", vectorize=True)
 		fmk = f(vk)
 		return fmk.detach(), L.detach()
+
+	def get_log_likelihood(self, value):
+		self._set_value(value, store=False)
+		self.superposition.generate()
+		return self.superposition.observations.log_density
+
+	@property
+	def log_density_per_sequence(self):
+		prior_dist = MultivariateNormal(
+			loc=self.mean.data,
+			scale_tril=self.kernel.chol
+		)
+		return prior_dist.log_prob(self.data)
+
+	@property
+	def log_density(self):
+		return self.log_density_per_sequence.sum().item()
 
 	def mala_sample(self, store=True):
 		value = self._value.clone().detach()
@@ -178,7 +182,8 @@ class GaussianProcess(Variable):
 				value[k, :] = vk
 			self._mala["n_accepts"][k] += acc
 			self._mala["n_proposals"][k] += 1
-			self._mala["step_size"][k] *= (1. + 0.02 * (acc - 0.574))
+			# self._mala["step_size"][k] *= (1. + 0.02 * (acc - 0.574))
+			self._mala["step_size"][k] *= (1. + 0.1 * (acc - 0.574) / (self._history.shape[0]+1)**0.5)
 			# print(f"[{self.id}.{k}] Acceptance rate: {acc_rate:.3f} ({acc})")
 		self._set_value(value.detach(), store=store)
 
@@ -362,29 +367,13 @@ class GaussianProcess(Variable):
 	def check_constraints(self, value):
 		return True
 
-	def get_log_likelihood(self, value):
-		self._set_value(value, store=False)
-		self.superposition.generate()
-		return self.superposition.observations.log_density
-
-	@property
-	def log_density_per_sequence(self):
-		prior_dist = MultivariateNormal(
-			loc=self.mean.data,
-			scale_tril=self.kernel.chol
-		)
-		return prior_dist.log_prob(self.data)
-
-	@property
-	def log_density(self):
-		return self.log_density_per_sequence.sum().item()
-
 
 class TruncatedGaussianProcess01(GaussianProcess):
 
 	def __init__(self, n_copies, kernel: Kernel, mean=0.5, fixed_components: list[int] | None = None):
 		super().__init__(n_copies, kernel, mean, fixed_components)
 		# self.sample = self.direct_sample
+		self._mala["step_size"] = [0.01 for _ in range(self._dim[0])]
 
 	def _dist(self, mean, covariance):
 		return TruncatedMultivariateGaussian(mean=mean, covariance=covariance)

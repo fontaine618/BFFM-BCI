@@ -142,7 +142,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
-				0.,
+				0.5,
 				0.
 			)
 		elif covariance == "static":
@@ -158,7 +158,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_loading_processes,
 				kernel_tgp_loading_processes,
-				0.,
+				0.0,
 				0.
 			)
 		elif covariance == "compound_symmetry":
@@ -169,17 +169,6 @@ class BFFModel:
 				0.,
 				0.
 			)
-			# smgp_scaling = SingleSMGP(
-			# 	dims["latent_dim"],
-			# 	kernel_gp_loading_processes,
-			# 	kernel_tgp_loading_processes,
-			# 	0.,
-			# 	0.,
-			# 	fixed_components=list(range(dims["n_channels"]))
-			# )
-			# smgp_scaling.nontarget_process.set_fixed_components(0.)
-			# smgp_scaling.target_process.set_fixed_components(0.)
-			# smgp_scaling.mixing_process.set_fixed_components(0.)
 		else:
 			raise ValueError(f"Unknown covariance method: {covariance}.")
 
@@ -208,7 +197,7 @@ class BFFModel:
 				dims["latent_dim"],
 				kernel_gp_factor_processes,
 				kernel_tgp_factor_processes,
-				0.,
+				0.5,
 				0.,
 				fixed_components=fixed_components
 			)
