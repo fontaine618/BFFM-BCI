@@ -431,13 +431,6 @@ class BFFModel:
 		self.sample(["shrinkage_factor", "heterogeneities"])
 		self.variables["observation_variance"].data = observation_variance
 		self.variables["factor_processes"].data = sfactors.clone()
-		# update smgp_factors: first set everything to constant, then update with the factors
-		# self.variables["smgp_factors"].nontarget_process.data.zero_()
-		# self.variables["smgp_factors"].target_process.data.zero_()
-		# self.variables["smgp_factors"].mixing_process.data.fill_(0.5)
-		# self.variables["smgp_scaling"].nontarget_process.data.fill_(0.)
-		# self.variables["smgp_scaling"].target_process.data.fill_(0.)
-		# self.variables["smgp_scaling"].mixing_process.data.fill_(0.5)
 		self.variables["smgp_factors"].nontarget_process.fill_mean()
 		self.variables["smgp_factors"].target_process.fill_mean()
 		self.variables["smgp_factors"].mixing_process.fill_mean()
@@ -448,12 +441,6 @@ class BFFModel:
 		self.sample(["smgp_factors"])
 		self.sample(["mean_factor_processes"])
 		self.sample(["factor_processes"])
-		# # compute the loadings processes by dividing and clipping above 0
-		# z = self.variables["factor_processes"].data
-		# lprocesses = 1. + (sfactors - z) / torch.where(z.abs() > 0.1, z, torch.ones_like(z))
-		# lprocesses = torch.clamp(lprocesses, min=0., max=5.)
-		# lprocesses = lprocesses @ smat
-		# self.variables["loading_processes"].data = lprocesses
 		self.sample(["smgp_scaling"])
 		self.sample(["loading_processes"])
 		self.clear_history()
@@ -465,7 +452,11 @@ class BFFModel:
 	@data.setter
 	def data(self, value: dict[str: torch.Tensor]):
 		for k, v in value.items():
-			self.variables[k].data = v
+			if "." in k:
+				v1, v2 = k.split(".")
+				self.variables[v1][v2].data = v
+			else:
+				self.variables[k].data = v
 
 	def chain(self, start=0, end=None, thin=1):
 		return {
