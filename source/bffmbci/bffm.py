@@ -36,6 +36,8 @@ class BFFModel:
 			mean_regression: bool = True,
 			**kwargs
 	):
+		if covariance == "compound_symmetry":
+			latent_dim = n_channels + 1
 		self._dimensions = {
 			"n_sequences": n_sequences,
 			"n_timepoints": (n_stimulus[0] - 1) * stimulus_to_stimulus_interval + stimulus_window,
@@ -81,6 +83,7 @@ class BFFModel:
 		self._settings["shrinkage"] = shrinkage
 		self._settings["covariance"] = covariance
 		self._settings["mean_regression"] = mean_regression
+
 
 		parms = self.prior_parameters
 		dims = self._dimensions

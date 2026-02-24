@@ -51,7 +51,11 @@ class CompoundSymmetryLoadings(Variable):
 		for e in range(self.shape[0]):
 			prec = outer / sig2[e]
 			prec_times_mean = torch.einsum("nt, nkt -> k", x[:, e, :], eta) / sig2[e]
-			cov = torch.inverse(prec)
+			try:
+				cov = torch.inverse(prec)
+			except torch._C._LinAlgError:
+				cov = torch.inverse(prec + 1e-5 * torch.eye(prec.shape[0]))
+				print("Warning: precision matrix is singular, using reg. inverse")
 			mean = prec_times_mean @ cov
 			dist = MultivariateNormal(loc=mean, covariance_matrix=cov)
 			Theta[e, :] = dist.sample()

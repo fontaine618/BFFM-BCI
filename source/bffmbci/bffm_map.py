@@ -31,6 +31,8 @@ class BFFModelMAP:
             mean_regression: bool = True,
             **kwargs
     ):
+        if covariance == "compound_symmetry":
+            latent_dim = n_channels + 1
         self._dimensions = {
             "n_sequences": n_sequences,
             "n_timepoints": (n_stimulus[0] - 1) * stimulus_to_stimulus_interval + stimulus_window,
@@ -112,10 +114,19 @@ class BFFModelMAP:
         )
 
         # loadings
-        self.variables["loadings"] = torch.nn.Parameter(
-            torch.randn(E, K),
-            requires_grad=True
-        )
+        if covariance == "compound_symmetry":
+            self.variables["loadings"] = torch.nn.Parameter(
+                torch.hstack([
+                    torch.eye(E),
+                    torch.ones(E, 1)
+                ]),
+                requires_grad=False
+            )
+        else:
+            self.variables["loadings"] = torch.nn.Parameter(
+                torch.randn(E, K),
+                requires_grad=True
+            )
         self.variables["heterogeneities"] = torch.nn.Parameter(
             torch.ones(E, K),
             requires_grad=True
@@ -186,7 +197,7 @@ class BFFModelMAP:
             self.variables["scaling_process.target_signal"].data.zero_()
             self.variables["scaling_process.logit_mixing_signal"].requires_grad = False
             self.variables["scaling_process.logit_mixing_signal"].data.fill_(-100.)
-        elif covariance == "static":
+        elif (covariance == "static") or (covariance == "compound_symmetry"):
             self.variables["scaling_process.nontarget_signal"].requires_grad = False
             self.variables["scaling_process.nontarget_signal"].data.zero_()
             self.variables["scaling_process.target_signal"].requires_grad = False
@@ -531,6 +542,8 @@ class BFFModelMAP:
                 "factor_processes": self.variables["factor_processes"].detach().clone(),
                 "mean_factor_processes": self.variables["mean_factor_processes"].detach().clone()
             }
+            if self._settings["covariance"] == "compound_symmetry":
+                del variables["heterogeneities"]
             return variables
 
     def predict(self, method="maximize", **kwargs):
@@ -619,6 +632,18 @@ class DynamicRegressionCovarianceStaticMeanMAP(BFFModelMAP):
         kwargs["covariance"] = "dynamic_regression"
         kwargs["mean_regression"] = False
         super().__init__(**kwargs)
+
+
+class CompoundSymmetryCovarianceRegressionMeanMAP(BFFModelMAP):
+
+    def __init__(self, **kwargs):
+        kwargs["covariance"] = "compound_symmetry"
+        kwargs["mean_regression"] = True
+        super().__init__(**kwargs)
+
+    def initialize(self, reverse=False, weighted=False, loadings=None):
+        super().initialize(reverse=reverse, weighted=weighted, loadings=loadings)
+
 
 
 def _build_kernel_matrix(dim, scale=1., power=1., correlation=0.8):
