@@ -66,6 +66,7 @@ class GaussianProcess(Variable):
 			"n_proposals": [0 for _ in range(self._dim[0])],
 			"n_accepts": [0 for _ in range(self._dim[0])],
 			"step_size": [0.00001 for _ in range(self._dim[0])],
+			"taming": [1.0 for _ in range(self._dim[0])],
 		}
 
 	def generate(self):
@@ -162,8 +163,12 @@ class GaussianProcess(Variable):
 				continue
 			logpi, grad = self._get_log_prob_and_grad(k, value)
 			step_size = self._mala["step_size"][k]
+			K = self._mala["taming"][k]
 			vk = value[k, :].clone().detach()
-			step = step_size * grad
+			# Taming: reduce step size in high gradient regions
+			grad_norm = torch.norm(grad)
+			taming_factor = 1.0 / (1.0 + step_size * grad_norm / K)
+			step = step_size * grad * taming_factor
 			noise = torch.randn_like(vk) * (2 * step_size) ** 0.5
 			proposal = vk + step + noise
 			value[k, :] = proposal.detach()
@@ -171,11 +176,13 @@ class GaussianProcess(Variable):
 				acc_rate = 0.
 			else:
 				logpi_proposal, grad_proposal = self._get_log_prob_and_grad(k, value)
-				step_proposal = step_size * grad_proposal
+				grad_proposal_norm = torch.norm(grad_proposal)
+				taming_factor_proposal = 1.0 / (1.0 + step_size * grad_proposal_norm / K)
+				step_proposal = step_size * grad_proposal * taming_factor_proposal
 				num = logpi_proposal - (vk - proposal - step_proposal).pow(2.).sum() / (4*step_size)
 				den = logpi - (proposal - vk - step).pow(2.).sum() / (4*step_size)
-				acc_rate = min(1., torch.exp(num - den))
-			if torch.rand(1) < acc_rate:
+				acc_rate = min(1., torch.exp(num - den).item())
+			if torch.rand(1).item() < acc_rate:
 				acc = 1
 			else:
 				acc = 0
@@ -374,6 +381,7 @@ class TruncatedGaussianProcess01(GaussianProcess):
 		super().__init__(n_copies, kernel, mean, fixed_components)
 		# self.sample = self.direct_sample
 		self._mala["step_size"] = [0.01 for _ in range(self._dim[0])]
+		self._mala["taming"] = [1.0 for _ in range(self._dim[0])]
 
 	def _dist(self, mean, covariance):
 		return TruncatedMultivariateGaussian(mean=mean, covariance=covariance)
