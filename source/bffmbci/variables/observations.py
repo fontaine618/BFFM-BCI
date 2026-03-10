@@ -89,10 +89,19 @@ class GaussianObservations(ObservedVariable):
 	def log_density(self):
 		return self.log_density_per_sequence.sum().item()
 
-	def generate(self):
+	def generate(self, noise_distribution="gaussian", df=None):
 		sd = self.observation_variance.data.sqrt()
 		mean = self.mean()
-		value = mean + torch.randn_like(mean) * sd.unsqueeze(0).unsqueeze(2)
+		if noise_distribution == "gaussian":
+			noise = torch.randn_like(mean)
+		elif noise_distribution in {"student_t", "student-t", "t"}:
+			if df is None or df <= 0:
+				raise ValueError("df must be a positive scalar when noise_distribution is 'student_t'.")
+			df_tensor = torch.as_tensor(df, dtype=mean.dtype, device=mean.device)
+			noise = torch.distributions.StudentT(df=df_tensor).rsample(mean.shape)
+		else:
+			raise ValueError("noise_distribution must be 'gaussian' or 'student_t'.")
+		value = mean + noise * sd.unsqueeze(0).unsqueeze(2)
 		self._set_value(value)
 
 	def time_kernel(self, k):
