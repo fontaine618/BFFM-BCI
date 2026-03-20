@@ -363,6 +363,14 @@ class BFFMResults:
             settings=self.settings
         )
 
+    def get(self, id: int):
+        """Get the sample with the given id. The id is the index of the sample in the flattened chains."""
+        if id >= self.n_chains * self.n_samples:
+            raise IndexError(f"Sample id {id} is out of bounds for {self.n_chains} chains and {self.n_samples} samples.")
+        chain_id = id // self.n_samples
+        sample_id = id % self.n_samples
+        return {k: v[chain_id, sample_id, ...] for k, v in self.chains.items()}
+
 
 def add_transformed_variables(chains):
     if "loadings" in chains:

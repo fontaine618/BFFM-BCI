@@ -355,8 +355,10 @@ class BFFModel:
 			if k in self.variables:
 				self.variables[k].data = v
 			elif "." in k:
-				plate, var = k.split(".")
-				self.variables[plate].variables[var].data = v
+				terms = k.split(".")
+				plate, var = terms[0], terms[1]
+				if plate in self.variables and var in self.variables[plate].variables:
+					self.variables[plate].variables[var].data = v
 
 	def _initialize_prior_parameters(self, **kwargs):
 		prior_parameters = {
